@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
-if (MSVC)
-    add_compile_definitions(_ENABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+if (WIN32)
+    # Modern MSVC STL lacks support for <mutex> on < Win10 targets due to missing _Mtx_init_in_situ / _Cnd_init_in_situ
+    remove_definitions(-D_WIN32_WINNT=_WIN32_WINNT_WINBLUE -DWINVER=_WIN32_WINNT_WINBLUE -DNTDDI_VERSION=NTDDI_WINBLUE)
+    add_compile_definitions(_WIN32_WINNT=0x0A00 WINVER=0x0A00 NTDDI_VERSION=0x0A000000)
 endif()
 
 include(GenerateExportHeader)
