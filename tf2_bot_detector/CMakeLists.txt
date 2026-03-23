@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
+if (MSVC)
+    add_compile_definitions(_ENABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+endif()
+
 include(GenerateExportHeader)
 
 if (WIN32)
