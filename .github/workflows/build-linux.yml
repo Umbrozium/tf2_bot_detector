@@ -93,14 +93,6 @@ jobs:
         fetch-depth: 0
         submodules: true
 
-    - uses: seanmiddleditch/gha-setup-ninja@v4
-    - name: Configure build tools
-      run: "echo yea"
-
-    # we're technically getting cmake twice
-    # should be fine right
-    - uses: lukka/get-cmake@latest
-
     - name: Add universe respository to apt
       run: sudo add-apt-repository universe && sudo apt-get update
 
@@ -138,9 +130,6 @@ jobs:
 
     - name: Configure Build
       working-directory: ${{needs.config.outputs.tf2bd_build_dir}}
-      env:
-        CC: gcc-11
-        CXX: g++-11
       run: |
         cmake -G Ninja \
           -DTF2BD_IS_CI_COMPILE=ON \
