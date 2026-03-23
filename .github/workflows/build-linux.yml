@@ -93,15 +93,6 @@ jobs:
         fetch-depth: 0
         submodules: true
 
-    - name: Setup NuGet Credentials
-      run: >
-        nuget sources add
-        -source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-        -storepasswordincleartext
-        -name "GitHub"
-        -username "${{ github.repository_owner }}"
-        -password "${{ secrets.GITHUB_TOKEN }}"
-
     - uses: seanmiddleditch/gha-setup-ninja@v4
     - name: Configure build tools
       run: "echo yea"
@@ -114,7 +105,7 @@ jobs:
       run: sudo add-apt-repository universe && sudo apt-get update
 
     - name: Install Dependencies
-      run: sudo apt-get install -y --no-install-recommends libtbb-dev libgl-dev libegl-dev libglx-dev 
+      run: sudo apt-get install -y --no-install-recommends nuget mono-devel libtbb-dev libgl-dev libegl-dev libglx-dev 
               gcc-11 g++-11 libsdl2-dev build-essential git make 
               pkg-config cmake ninja-build gnome-desktop-testing libasound2-dev libpulse-dev 
               libaudio-dev libjack-dev libsndio-dev libx11-dev libxext-dev 
@@ -123,6 +114,15 @@ jobs:
               libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev fcitx-libs-dev 
               libpipewire-0.3-dev libwayland-dev libdecor-0-dev libxrender-dev 
               mesa-common-dev libxft-dev
+
+    - name: Setup NuGet Credentials
+      run: >
+        nuget sources add
+        -source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+        -storepasswordincleartext
+        -name "GitHub"
+        -username "${{ github.repository_owner }}"
+        -password "${{ secrets.GITHUB_TOKEN }}"
 
     - name: Install discord-game-sdk 3.2.1
       if: matrix.discord_integration == true
