@@ -10,12 +10,16 @@
 #include <set>
 
 #ifdef _WIN32
+#define NOMINMAX
 #include <Windows.h>
 #endif
 
 using namespace std::string_literals;
 
 // TODO: move to platform? might make more sense over there
+
+#undef min
+#undef max
 
 std::u16string tf2_bot_detector::ToU16(const std::u8string_view& input)
 {
