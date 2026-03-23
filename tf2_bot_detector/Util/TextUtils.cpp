@@ -9,6 +9,10 @@
 #include <fstream>
 #include <set>
 
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
 using namespace std::string_literals;
 
 // TODO: move to platform? might make more sense over there
@@ -29,8 +33,20 @@ std::u16string tf2_bot_detector::ToU16(const char* input, const char* input_end)
 
 std::u16string tf2_bot_detector::ToU16(const std::string_view& input)
 {
+	if (input.empty())
+		return {};
+
+#ifdef _WIN32
+	int size_needed = MultiByteToWideChar(CP_UTF8, 0, input.data(), static_cast<int>(input.size()), nullptr, 0);
+	if (size_needed == 0) return {};
+	
+	std::u16string result(size_needed, u'\0');
+	MultiByteToWideChar(CP_UTF8, 0, input.data(), static_cast<int>(input.size()), reinterpret_cast<wchar_t*>(result.data()), size_needed);
+	return result;
+#else
 	std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
 	return converter.from_bytes(input.data(), input.data() + input.size());
+#endif
 }
 
 std::u16string tf2_bot_detector::ToU16(const std::wstring_view& input)
@@ -64,19 +80,54 @@ std::string tf2_bot_detector::ToMB(const std::u8string_view& input)
 
 std::string tf2_bot_detector::ToMB(const std::u16string_view& input)
 {
+	if (input.empty())
+		return {};
+
+#ifdef _WIN32
+	int size_needed = WideCharToMultiByte(CP_UTF8, 0, reinterpret_cast<const wchar_t*>(input.data()), static_cast<int>(input.size()), nullptr, 0, nullptr, nullptr);
+	if (size_needed == 0) return {};
+	
+	std::string result(size_needed, '\0');
+	WideCharToMultiByte(CP_UTF8, 0, reinterpret_cast<const wchar_t*>(input.data()), static_cast<int>(input.size()), result.data(), size_needed, nullptr, nullptr);
+	return result;
+#else
 	std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
 	return converter.to_bytes(input.data(), input.data() + input.size());
+#endif
 }
 
 std::string tf2_bot_detector::ToMB(const std::wstring_view& input)
 {
+	if (input.empty())
+		return {};
+
+#ifdef _WIN32
+	int size_needed = WideCharToMultiByte(CP_UTF8, 0, input.data(), static_cast<int>(input.size()), nullptr, 0, nullptr, nullptr);
+	if (size_needed == 0) return {};
+	
+	std::string result(size_needed, '\0');
+	WideCharToMultiByte(CP_UTF8, 0, input.data(), static_cast<int>(input.size()), result.data(), size_needed, nullptr, nullptr);
+	return result;
+#else
 	return mh::change_encoding<char>(input);
-	//return ToMB(ToU16(input));
+#endif
 }
 
 std::wstring tf2_bot_detector::ToWC(const std::string_view& input)
 {
+	if (input.empty())
+		return {};
+
+#ifdef _WIN32
+	int size_needed = MultiByteToWideChar(CP_UTF8, 0, input.data(), static_cast<int>(input.size()), nullptr, 0);
+	if (size_needed == 0) return {};
+	
+	std::wstring result(size_needed, L'\0');
+	MultiByteToWideChar(CP_UTF8, 0, input.data(), static_cast<int>(input.size()), result.data(), size_needed);
+	return result;
+#else
 	return mh::change_encoding<wchar_t>(input);
+#endif
 }
 
 std::u16string tf2_bot_detector::ReadWideFile(const std::filesystem::path& filename)
