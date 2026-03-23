@@ -425,9 +425,10 @@ void ModeratorLogic::OnLocalPlayerInitialized(IWorldState & world, bool initiali
 
 		for (IPlayer& player : m_World->GetLobbyMembers())
 		{
-			if (!m_PlayerList.GetPlayerAttributes(player).empty()) {
+			auto rawMarks = GetPlayerAttributes(player);
+			auto partyMarks = FilterMarks(rawMarks, m_Settings->m_AutoChatWarningsPartyIgnore);
 
-				auto marks = GetPlayerAttributes(player);
+			if (!partyMarks.empty()) {
 
 				std::string username = player.GetNameSafe();
 
@@ -449,8 +450,8 @@ void ModeratorLogic::OnLocalPlayerInitialized(IWorldState & world, bool initiali
 						"{}: {} - {} ({})",
 						markedPlayerCount,
 						username,
-						marksToString(marks),
-						marks.m_Marks.front().m_FileName
+						marksToString(partyMarks),
+						partyMarks.m_Marks.front().m_FileName
 					).c_str()
 				);
 				++markedPlayerCount;
