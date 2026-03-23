@@ -1,7 +1,3 @@
-#ifdef _WIN32
-#include <sdkddkver.h>
-#endif
-
 #include "Log.h"
 #include "Util/PathUtils.h"
 #include "Filesystem.h"
