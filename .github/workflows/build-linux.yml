@@ -105,7 +105,7 @@ jobs:
       run: sudo add-apt-repository universe && sudo apt-get update
 
     - name: Install Dependencies
-      run: sudo apt-get install -y --no-install-recommends nuget mono-devel libtbb-dev libgl-dev libegl-dev libglx-dev 
+      run: sudo apt-get install -y --no-install-recommends mono-devel libtbb-dev libgl-dev libegl-dev libglx-dev 
               gcc-11 g++-11 libsdl2-dev build-essential git make 
               pkg-config cmake ninja-build gnome-desktop-testing libasound2-dev libpulse-dev 
               libaudio-dev libjack-dev libsndio-dev libx11-dev libxext-dev 
@@ -117,12 +117,11 @@ jobs:
 
     - name: Setup NuGet Credentials
       run: >
-        nuget sources add
-        -source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-        -storepasswordincleartext
-        -name "GitHub"
-        -username "${{ github.repository_owner }}"
-        -password "${{ secrets.GITHUB_TOKEN }}"
+        dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+        --name "GitHub"
+        --username "${{ github.repository_owner }}"
+        --password "${{ secrets.GITHUB_TOKEN }}"
+        --store-password-in-clear-text
 
     - name: Install discord-game-sdk 3.2.1
       if: matrix.discord_integration == true
