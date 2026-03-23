@@ -4,6 +4,11 @@
 #include <chrono>
 #include <ctime>
 #include <ostream>
+#include <mutex>
+#include <condition_variable>
+#include <shared_mutex>
+#include <thread>
+#include <future>
 
 namespace tf2_bot_detector
 {
