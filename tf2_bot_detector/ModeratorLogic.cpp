@@ -222,6 +222,7 @@ std::string listMarkFiles(PlayerMarks& marks) {
 // lazy and dumb function to convert player marks to string
 std::string marksToString(PlayerMarks& marks) {
 	PlayerAttributesList attribute{ 0 };
+	attribute.SetAttribute(static_cast<PlayerAttribute>(0), false);
 
 	// combine all the m_Marks to one attributeList
 	for (const auto& mark : marks.m_Marks)
@@ -251,6 +252,28 @@ std::string marksToString(PlayerMarks& marks) {
 	}
 
 	return attrib_summary;
+}
+
+static PlayerMarks FilterMarks(const PlayerMarks& marks, const std::array<bool, 4>& ignoreList)
+{
+	PlayerMarks filtered;
+	for (const auto& mark : marks.m_Marks)
+	{
+		PlayerAttributesList attr = mark.m_Attributes;
+		for (size_t i = 0; i < 4; ++i)
+		{
+			if (ignoreList[i])
+				attr.SetAttribute(static_cast<PlayerAttribute>(i), false);
+		}
+		
+		if (!attr.empty())
+		{
+			auto newMark = mark;
+			newMark.m_Attributes = attr;
+			filtered.m_Marks.push_back(newMark);
+		}
+	}
+	return filtered;
 }
 
 std::unique_ptr<IModeratorLogic> IModeratorLogic::Create(IWorldState& world,
@@ -996,11 +1019,10 @@ void ModeratorLogic::ProcessPlayerActions()
 
 	// all cheaters in lobby: used for m_IgnoreTeamStateOnCertainMaps.
 	std::vector<Cheater> allCheaters;
-	std::vector<Cheater> enemyCheaters;
 	std::vector<Cheater> friendlyCheaters;
-	std::vector<Cheater> connectingEnemyCheaters;
-	// the struct Cheater doesn't really have to be always a cheater (lol)
-	std::vector<Cheater> connectingMarkedPlayer;
+	std::vector<Cheater> enemyChatWarnPlayers;
+	std::vector<Cheater> connectingEnemyChatWarnPlayers;
+	std::vector<Cheater> connectingPartyWarnPlayers;
 
 	const bool isBotLeader = IsBotLeader();
 	bool needsEnemyWarning = false;
@@ -1008,12 +1030,15 @@ void ModeratorLogic::ProcessPlayerActions()
 	{
 		const bool isPlayerConnected = player.GetConnectionState() == PlayerStatusState::Active;
 		const auto isCheater = m_PlayerList.HasPlayerAttributes(player, PlayerAttribute::Cheater);
-		const bool isMarked = !m_PlayerList.GetPlayerAttributes(player).empty();
 		const auto teamShareResult = m_World->GetTeamShareResult(*myTeam, player);
 
-		if (isMarked && !isPlayerConnected)
+		auto rawMarks = m_PlayerList.GetPlayerAttributes(player);
+		auto chatMarks = FilterMarks(rawMarks, m_Settings->m_AutoChatWarningsIgnore);
+		auto partyMarks = FilterMarks(rawMarks, m_Settings->m_AutoChatWarningsPartyIgnore);
+
+		if (!partyMarks.empty() && !isPlayerConnected)
 		{
-			connectingMarkedPlayer.push_back({ player, m_PlayerList.GetPlayerAttributes(player) });
+			connectingPartyWarnPlayers.push_back({ player, partyMarks });
 		}
 
 		if (bool(isCheater))
@@ -1038,13 +1063,13 @@ void ModeratorLogic::ProcessPlayerActions()
 			{
 				connectedEnemyPlayers++;
 
-				if (isCheater && !player.GetNameSafe().empty())
-					enemyCheaters.push_back({ player, isCheater });
+				if (!chatMarks.empty() && !player.GetNameSafe().empty())
+					enemyChatWarnPlayers.push_back({ player, chatMarks });
 			}
 			else
 			{
-				if (isCheater)
-					connectingEnemyCheaters.push_back({ player, isCheater });
+				if (!chatMarks.empty())
+					connectingEnemyChatWarnPlayers.push_back({ player, chatMarks });
 			}
 
 			totalEnemyPlayers++;
@@ -1052,7 +1077,7 @@ void ModeratorLogic::ProcessPlayerActions()
 	}
 
 
-	HandleEnemyCheaters(totalEnemyPlayers, enemyCheaters, connectingEnemyCheaters);
+	HandleEnemyCheaters(totalEnemyPlayers, enemyChatWarnPlayers, connectingEnemyChatWarnPlayers);
 
 	// because we're in a map that swaps the teams around constantly, just ignore our own "team state" and try to call for everyone.
 	if (this->VoteKickIgnoresTeamState()) {
@@ -1062,7 +1087,7 @@ void ModeratorLogic::ProcessPlayerActions()
 		HandleFriendlyCheaters(totalFriendlyPlayers, connectedFriendlyPlayers, friendlyCheaters);
 	}
 
-	HandleConnectingMarkedPlayers(connectingMarkedPlayer);
+	HandleConnectingMarkedPlayers(connectingPartyWarnPlayers);
 }
 
 bool ModeratorLogic::SetPlayerAttribute(const IPlayer& player, PlayerAttribute attribute, AttributePersistence persistence, bool set, std::string proof)

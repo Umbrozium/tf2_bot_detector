@@ -502,6 +502,8 @@ void Settings::Deserialize(const nlohmann::json& json)
 			}
 
 			try_get_to_defaulted(*custom_values, m_ChatWarningSendOnce, "chat_warning_warn_once", DEFAULTS.m_ChatWarningSendOnce);
+			try_get_to_defaulted(*custom_values, m_AutoChatWarningsIgnore, "chat_warning_ignore", DEFAULTS.m_AutoChatWarningsIgnore);
+			try_get_to_defaulted(*custom_values, m_AutoChatWarningsPartyIgnore, "party_warning_ignore", DEFAULTS.m_AutoChatWarningsPartyIgnore);
 
 			// custom warning messages
 			{
@@ -622,6 +624,8 @@ void Settings::Serialize(nlohmann::json& json) const
 						{ "chat_warning_interval", m_ChatWarningInterval },
 						{ "use_custom_chat_warnings", m_UseCustomChatWarnings },
 						{ "chat_warning_warn_once", m_ChatWarningSendOnce },
+						{ "chat_warning_ignore", m_AutoChatWarningsIgnore },
+						{ "party_warning_ignore", m_AutoChatWarningsPartyIgnore },
 						{ "one_cheater_connecting", m_OneCheaterConnectingMessage },
 						{ "muti_cheater_connecting", m_MultipleCheaterConnectingMessage },
 						{ "one_cheater_warning", m_OneCheaterWarningMessage },

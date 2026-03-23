@@ -167,6 +167,16 @@ void SettingsWindow::OnDrawModerationSettings()
 		}
 		ImGui::EndDisabled();
 
+		if (m_Settings.m_AutoChatWarnings) {
+			if (ImGui::TreeNode("Ignore Attributes (Chat Warnings)")) {
+				if (ImGui::Checkbox("Cheater##Chat", &m_Settings.m_AutoChatWarningsIgnore[0])) m_Settings.SaveFile();
+				if (ImGui::Checkbox("Suspicious##Chat", &m_Settings.m_AutoChatWarningsIgnore[1])) m_Settings.SaveFile();
+				if (ImGui::Checkbox("Exploiter##Chat", &m_Settings.m_AutoChatWarningsIgnore[2])) m_Settings.SaveFile();
+				if (ImGui::Checkbox("Racist##Chat", &m_Settings.m_AutoChatWarningsIgnore[3])) m_Settings.SaveFile();
+				ImGui::TreePop();
+			}
+		}
+
 		{
 			if (ImGui::Checkbox("Custom chat message warnings", &m_Settings.m_UseCustomChatWarnings))
 				m_Settings.SaveFile();
@@ -241,17 +251,15 @@ void SettingsWindow::OnDrawModerationSettings()
 
 		ImGui::NewLine();
 
-		/*
-		{
-			ImGui::TextFmt("Don't warn these marks to party: (This Setting Will NOT be saved)");
-
-			static bool selection[4] = { false, false, false, false };
-			ImGui::Selectable("Cheater", &m_Settings.m_AutoChatWarningsPartyIgnore[0]);
-			ImGui::Selectable("Suspicious", &m_Settings.m_AutoChatWarningsPartyIgnore[1]);
-			ImGui::Selectable("Exploiter", &m_Settings.m_AutoChatWarningsPartyIgnore[2]);
-			ImGui::Selectable("Racist", &m_Settings.m_AutoChatWarningsPartyIgnore[3]);
+		if (m_Settings.m_AutoChatWarningsConnectingParty) {
+			if (ImGui::TreeNode("Ignore Attributes (Party Warnings)")) {
+				if (ImGui::Checkbox("Cheater##Party", &m_Settings.m_AutoChatWarningsPartyIgnore[0])) m_Settings.SaveFile();
+				if (ImGui::Checkbox("Suspicious##Party", &m_Settings.m_AutoChatWarningsPartyIgnore[1])) m_Settings.SaveFile();
+				if (ImGui::Checkbox("Exploiter##Party", &m_Settings.m_AutoChatWarningsPartyIgnore[2])) m_Settings.SaveFile();
+				if (ImGui::Checkbox("Racist##Party", &m_Settings.m_AutoChatWarningsPartyIgnore[3])) m_Settings.SaveFile();
+				ImGui::TreePop();
+			}
 		}
-		*/
 
 
 		/*
