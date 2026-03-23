@@ -609,6 +609,7 @@ void ModeratorLogic::HandleConnectedEnemyCheaters(const std::vector<Cheater>& en
 	bool needsWarning = false;
 	std::vector<std::string> chatMsgCheaterNames;
 	std::multimap<std::string, Cheater> cheaterDebugWarnings;
+	std::vector<IPlayer*> cheatersToWarn;
 	for (auto& cheater : enemyCheaters)
 	{
 		// Theoretically this should never happen, but don't embarass ourselves
@@ -624,9 +625,8 @@ void ModeratorLogic::HandleConnectedEnemyCheaters(const std::vector<Cheater>& en
 		// 2. m_WarnedOnce is false
 		if (!m_Settings->m_ChatWarningSendOnce || !cheaterData.m_WarnedOnce) {		
 			chatMsgCheaterNames.emplace_back(cheater->GetNameSafe());
+			cheatersToWarn.push_back(&cheater.m_Player.get());
 		}
-		// we've warned for this guy, dont send again if m_ChatWarningSendOnce is true
-		cheaterData.m_WarnedOnce = true;
 
 		if (isBotLeader)
 		{
@@ -682,6 +682,11 @@ void ModeratorLogic::HandleConnectedEnemyCheaters(const std::vector<Cheater>& en
 				Log({ 1, 0, 0, 1 }, logMsg);
 				// used to be CHEATER_WARNING_INTERVAL
 				m_NextCheaterWarningTime = now + std::chrono::seconds(m_Settings->m_ChatWarningInterval);
+				
+				// we've warned for this guy, dont send again if m_ChatWarningSendOnce is true
+				for (IPlayer* p : cheatersToWarn) {
+					p->GetOrCreateData<PlayerExtraData>().m_WarnedOnce = true;
+				}
 			}
 		}
 		else
