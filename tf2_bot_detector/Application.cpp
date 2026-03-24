@@ -187,7 +187,10 @@ void TF2BDApplication::UpdateServerPing(time_point_t timestamp)
 		samples++;
 	}
 
-	m_ServerPingSamples.push_back({ timestamp, uint16_t(totalPing / samples) });
+	if (samples > 0)
+		m_ServerPingSamples.push_back({ timestamp, uint16_t(totalPing / samples) });
+	else
+		m_ServerPingSamples.push_back({ timestamp, 0 });
 	m_LastServerPingSample = timestamp;
 
 	while ((timestamp - m_ServerPingSamples.front().m_Timestamp) > 5min)

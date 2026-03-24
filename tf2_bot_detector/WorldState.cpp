@@ -498,9 +498,8 @@ void WorldState::OnConsoleLineParsed(IWorldState& world, IConsoleLine& parsed)
 	}
 	case ConsoleLineType::HostNewGame:
 	case ConsoleLineType::Connecting:
-	case ConsoleLineType::ClientReachedServerSpawn:
 	{
-		// we've just got in a new server, so reset our scoreboard
+		// we're leaving/joining a server, reset state
 		if (m_IsLocalPlayerInitialized)
 		{
 			this->ResetScoreboard();
@@ -513,6 +512,28 @@ void WorldState::OnConsoleLineParsed(IWorldState& world, IConsoleLine& parsed)
 		}
 
 		m_IsVoteInProgress = false;
+		break;
+	}
+	case ConsoleLineType::ClientReachedServerSpawn:
+	{
+		// Just in case we missed HostNewGame/Connecting, ensure state is reset
+		if (m_IsLocalPlayerInitialized)
+		{
+			this->ResetScoreboard();
+			m_MapName.clear();
+
+			m_IsLocalPlayerInitialized = false;
+			InvokeEventListener(&IWorldEventListener::OnLocalPlayerInitialized, *this, m_IsLocalPlayerInitialized);
+		}
+
+		m_IsVoteInProgress = false;
+
+		// The client has loaded the map and reached the server. Wake up RCON polling!
+		if (!m_IsLocalPlayerInitialized)
+		{
+			m_IsLocalPlayerInitialized = true;
+			InvokeEventListener(&IWorldEventListener::OnLocalPlayerInitialized, *this, m_IsLocalPlayerInitialized);
+		}
 		break;
 	}
 	case ConsoleLineType::Chat:

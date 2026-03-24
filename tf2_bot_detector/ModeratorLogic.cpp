@@ -413,6 +413,9 @@ void ModeratorLogic::OnChatMsg(IWorldState& world, IPlayer& player, const std::s
 /// <param name="initialized"></param>
 void ModeratorLogic::OnLocalPlayerInitialized(IWorldState & world, bool initialized)
 {
+	if (!initialized)
+		return;
+
 	//world.GetMapName()
 	m_ActionManager->QueueAction<GenericCommandAction>("exec tf2bd/OnGameJoin");
 
@@ -1002,8 +1005,7 @@ void ModeratorLogic::ProcessPlayerActions()
 	}
 
 	if (auto self = m_World->FindPlayer(m_Settings->GetLocalSteamID());
-		(self && self->GetConnectionState() != PlayerStatusState::Active) ||
-		!m_World->IsLocalPlayerInitialized())
+		!self || self->GetConnectionState() != PlayerStatusState::Active)
 	{
 		DebugLog("Skipping ProcessPlayerActions() because we are not fully connected yet");
 		return;
