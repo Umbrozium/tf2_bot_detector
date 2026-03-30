@@ -885,52 +885,45 @@ void ModeratorLogic::HandleConnectingMarkedPlayers(const std::vector<Cheater>& c
 	}
 
 	mh::fmtstr<128> chatMsg;
+	std::vector<Cheater> cheatersToActuallyWarn;
 
 	if (unwarnedCheaters.size() == 1)
 	{
-		auto& cheaterData = unwarnedCheaters.at(0)->GetOrCreateData<PlayerExtraData>();
+		auto& cheater = unwarnedCheaters.at(0);
+		auto& cheaterData = cheater->GetOrCreateData<PlayerExtraData>();
 		if (cheaterData.m_PartyWarned)
 			return;
 
-		tf2_bot_detector::IPlayer& player = unwarnedCheaters.at(0).m_Player.get();
-		PlayerMarks marks = unwarnedCheaters.at(0).m_Marks;
+		tf2_bot_detector::IPlayer& player = cheater.m_Player.get();
+		PlayerMarks marks = cheater.m_Marks;
 		SteamID steamid = player.GetSteamID();
 
-		// this looks ugly, but realistically you shouldn't be using this software with steamapi disabled.
 		std::string username = "";
-
-		// attempt to get a "true" username from steamapi, if enabled.
 		if (m_Settings->IsSteamAPIAvailable()) {
 			auto summary = player.GetPlayerSummary();
-
-			// steamapi didn't get the name yet, exit the function and this function will run again next loop.
 			if (!summary.has_value()) {
 				Log(steamid.str() + " - steamapi didnt recieve info, waiting until we receve data for this player.");
 				return;
 			}
-
-			username = (summary.value().m_Nickname);
+			username = summary.value().m_Nickname;
 		}
 
-		// move this into a func
 		size_t pos;
 		while ((pos = username.find(";")) != std::string::npos) {
 			username.replace(pos, 1, "");
 		}
 
-		// TODO: cite multiple files?
 		tf2_bot_detector::ConfigFileName fileName = marks.m_Marks.front().m_FileName;
-
 		if (std::filesystem::exists(fileName)) {
 			fileName = std::filesystem::path(fileName).filename().string();
 		}
 
 		chatMsg.fmt("[tf2bd] WARN: Marked Player ({}) Joining ({} - {}).", username, marksToString(marks), fileName);
+		cheatersToActuallyWarn.push_back(cheater);
 	}
 	else
 	{
 		std::string msg = "";
-
 		for (auto& p : unwarnedCheaters) {
 			auto& cheaterData = p->GetOrCreateData<PlayerExtraData>();
 			if (cheaterData.m_PartyWarned)
@@ -940,24 +933,16 @@ void ModeratorLogic::HandleConnectingMarkedPlayers(const std::vector<Cheater>& c
 			PlayerMarks marks = p.m_Marks;
 			SteamID steamid = player.GetSteamID();
 
-			// this looks ugly, but realistically you shouldn't be using this software with steamapi disabled.
 			std::string name = "";
-
-			// attempt to get a "true" username from steamapi, if enabled.
 			if (m_Settings->IsSteamAPIAvailable()) {
 				auto summary = player.GetPlayerSummary();
-
-				// steamapi didn't get the name yet, exit the function and this function will run again next loop.
 				if (!summary.has_value()) {
 					Log(steamid.str() + " - steamapi didnt recieve info, waiting until we receve data for this player." );
-					return;
+					continue;
 				}
-
-				name = (summary.value().m_Nickname);
+				name = summary.value().m_Nickname;
 			}
 
-			// sanitize our name;
-			// move this into a func
 			size_t pos;
 			while ((pos = name.find(";")) != std::string::npos) {
 				name.replace(pos, 1, "");
@@ -968,25 +953,29 @@ void ModeratorLogic::HandleConnectingMarkedPlayers(const std::vector<Cheater>& c
 				name += "..";
 			}
 
-			// TODO: cite multiple files?
 			tf2_bot_detector::ConfigFileName fileName = marks.m_Marks.front().m_FileName;
-
 			if (std::filesystem::exists(fileName)) {
 				fileName = std::filesystem::path(fileName).filename().string();
 			}
 
 			msg += mh::format("{} - {}, ", name, marksToString(marks), fileName);
+			cheatersToActuallyWarn.push_back(p);
 		}
 
-		msg.pop_back();
-		msg.pop_back();
+		if (cheatersToActuallyWarn.empty())
+			return;
 
-		chatMsg.fmt("[tf2bd] WARN: {} Marked Players Joining. ({})", connectingEnemyCheaters.size(), msg);
+		msg.pop_back();
+		msg.pop_back();
+		chatMsg.fmt("[tf2bd] WARN: {} Marked Players Joining. ({})", cheatersToActuallyWarn.size(), msg);
 	}
+
+	if (cheatersToActuallyWarn.empty())
+		return;
 
 	if (m_ActionManager->QueueAction<PartyChatMessageAction>(chatMsg.str()))
 	{
-		for (auto& cheater : unwarnedCheaters)
+		for (auto& cheater : cheatersToActuallyWarn)
 			cheater->GetOrCreateData<PlayerExtraData>().m_PartyWarned = true;
 	}
 }
@@ -1139,6 +1128,13 @@ bool ModeratorLogic::SetPlayerAttribute(const SteamID& player, std::string name,
 
 			return ModifyPlayerAction::Modified;
 		});
+
+	if (attributeChanged && set && proof.rfind("[auto]", 0) != 0)
+	{
+		mh::fmtstr<128> chatMsg;
+		chatMsg.fmt("[tf2bd] Marked {} as {}.", name, to_string(attribute));
+		m_ActionManager->QueueAction<PartyChatMessageAction>(chatMsg.str());
+	}
 
 	return attributeChanged;
 }
