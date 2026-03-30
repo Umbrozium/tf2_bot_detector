@@ -1129,10 +1129,14 @@ bool ModeratorLogic::SetPlayerAttribute(const SteamID& player, std::string name,
 			return ModifyPlayerAction::Modified;
 		});
 
-	if (attributeChanged && set && proof.rfind("[auto]", 0) != 0)
+	if (attributeChanged && proof.rfind("[auto]", 0) != 0)
 	{
 		mh::fmtstr<128> chatMsg;
-		chatMsg.fmt("[tf2bd] Marked {} as {}.", name, to_string(attribute));
+		if (set)
+			chatMsg.fmt("[tf2bd] Marked {} as {}.", name, to_string(attribute));
+		else
+			chatMsg.fmt("[tf2bd] Unmarked {} as {}.", name, to_string(attribute));
+
 		m_ActionManager->QueueAction<PartyChatMessageAction>(chatMsg.str());
 	}
 
