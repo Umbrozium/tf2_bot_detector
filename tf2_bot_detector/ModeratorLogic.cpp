@@ -999,6 +999,22 @@ void ModeratorLogic::ProcessPlayerActions()
 		m_LastPlayerActionsUpdate = now;
 	}
 
+	std::vector<Cheater> connectingPartyWarnPlayers;
+
+	for (IPlayer& player : m_World->GetLobbyMembers())
+	{
+		const bool isPlayerConnected = player.GetConnectionState() == PlayerStatusState::Active;
+		auto rawMarks = m_PlayerList.GetPlayerAttributes(player);
+		auto partyMarks = FilterMarks(rawMarks, m_Settings->m_AutoChatWarningsPartyIgnore);
+
+		if (!partyMarks.empty() && !isPlayerConnected)
+		{
+			connectingPartyWarnPlayers.push_back({ player, partyMarks });
+		}
+	}
+
+	HandleConnectingMarkedPlayers(connectingPartyWarnPlayers);
+
 	if (auto self = m_World->FindPlayer(m_Settings->GetLocalSteamID());
 		!self || self->GetConnectionState() != PlayerStatusState::Active)
 	{
