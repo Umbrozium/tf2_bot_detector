@@ -104,6 +104,9 @@ namespace
 			// same as above, but we don't want to spam party chat.
 			bool m_PartyWarned = false;
 
+			// true if we've already printed the actual game username for a marked player
+			bool m_PartyWarnedNameResolved = false;
+
 			// ignore rules for this player
 			// reason: if you have a hilariously agressive rule and
 			//  don't want to call this person out constantly 
@@ -1007,9 +1010,24 @@ void ModeratorLogic::ProcessPlayerActions()
 		auto rawMarks = m_PlayerList.GetPlayerAttributes(player);
 		auto partyMarks = FilterMarks(rawMarks, m_Settings->m_AutoChatWarningsPartyIgnore);
 
-		if (!partyMarks.empty() && !isPlayerConnected)
+		if (!partyMarks.empty())
 		{
-			connectingPartyWarnPlayers.push_back({ player, partyMarks });
+			if (!isPlayerConnected)
+			{
+				connectingPartyWarnPlayers.push_back({ player, partyMarks });
+			}
+
+			auto& extraData = player.GetOrCreateData<PlayerExtraData>();
+			if (extraData.m_PartyWarned && !extraData.m_PartyWarnedNameResolved)
+			{
+				std::string gameName = player.GetNameSafe();
+				if (!gameName.empty())
+				{
+					m_ActionManager->QueueAction<PartyChatMessageAction>(
+						mh::format("[tf2bd] {}, {}, {}", player.GetSteamID().str(), marksToString(partyMarks), gameName));
+					extraData.m_PartyWarnedNameResolved = true;
+				}
+			}
 		}
 	}
 
