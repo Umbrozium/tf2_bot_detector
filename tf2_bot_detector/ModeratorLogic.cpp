@@ -898,14 +898,17 @@ void ModeratorLogic::HandleConnectingMarkedPlayers(const std::vector<Cheater>& c
 		PlayerMarks marks = cheater.m_Marks;
 		SteamID steamid = player.GetSteamID();
 
-		std::string username = "";
-		if (m_Settings->IsSteamAPIAvailable()) {
-			auto summary = player.GetPlayerSummary();
-			if (!summary.has_value()) {
-				Log(steamid.str() + " - steamapi didnt recieve info, waiting until we receve data for this player.");
-				return;
+		std::string username = player.GetNameSafe();
+		if (username.empty()) {
+			if (m_Settings->IsSteamAPIAvailable()) {
+				auto summary = player.GetPlayerSummary();
+				if (summary.has_value()) {
+					username = summary.value().m_Nickname;
+				}
 			}
-			username = summary.value().m_Nickname;
+		}
+		if (username.empty()) {
+			username = steamid.str();
 		}
 
 		size_t pos;
@@ -933,14 +936,17 @@ void ModeratorLogic::HandleConnectingMarkedPlayers(const std::vector<Cheater>& c
 			PlayerMarks marks = p.m_Marks;
 			SteamID steamid = player.GetSteamID();
 
-			std::string name = "";
-			if (m_Settings->IsSteamAPIAvailable()) {
-				auto summary = player.GetPlayerSummary();
-				if (!summary.has_value()) {
-					Log(steamid.str() + " - steamapi didnt recieve info, waiting until we receve data for this player." );
-					continue;
+			std::string name = player.GetNameSafe();
+			if (name.empty()) {
+				if (m_Settings->IsSteamAPIAvailable()) {
+					auto summary = player.GetPlayerSummary();
+					if (summary.has_value()) {
+						name = summary.value().m_Nickname;
+					}
 				}
-				name = summary.value().m_Nickname;
+			}
+			if (name.empty()) {
+				name = steamid.str();
 			}
 
 			size_t pos;
@@ -1019,7 +1025,6 @@ void ModeratorLogic::ProcessPlayerActions()
 	std::vector<Cheater> friendlyCheaters;
 	std::vector<Cheater> enemyChatWarnPlayers;
 	std::vector<Cheater> connectingEnemyChatWarnPlayers;
-	std::vector<Cheater> connectingPartyWarnPlayers;
 
 	const bool isBotLeader = IsBotLeader();
 	bool needsEnemyWarning = false;
@@ -1031,12 +1036,6 @@ void ModeratorLogic::ProcessPlayerActions()
 
 		auto rawMarks = m_PlayerList.GetPlayerAttributes(player);
 		auto chatMarks = FilterMarks(rawMarks, m_Settings->m_AutoChatWarningsIgnore);
-		auto partyMarks = FilterMarks(rawMarks, m_Settings->m_AutoChatWarningsPartyIgnore);
-
-		if (!partyMarks.empty() && !isPlayerConnected)
-		{
-			connectingPartyWarnPlayers.push_back({ player, partyMarks });
-		}
 
 		if (bool(isCheater))
 			allCheaters.push_back({ player, isCheater });
@@ -1083,8 +1082,6 @@ void ModeratorLogic::ProcessPlayerActions()
 	else {
 		HandleFriendlyCheaters(totalFriendlyPlayers, connectedFriendlyPlayers, friendlyCheaters);
 	}
-
-	HandleConnectingMarkedPlayers(connectingPartyWarnPlayers);
 }
 
 bool ModeratorLogic::SetPlayerAttribute(const IPlayer& player, PlayerAttribute attribute, AttributePersistence persistence, bool set, std::string proof)
