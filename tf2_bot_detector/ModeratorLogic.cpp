@@ -1318,6 +1318,83 @@ ModeratorLogic::ModeratorLogic(IWorldState& world, const Settings& settings, RCO
 	m_PlayerList(settings),
 	m_Rules(settings)
 {
+	if (m_Settings)
+	{
+		if (auto tfDir = m_Settings->GetTFDir(); !tfDir.empty())
+		{
+			struct ClassConfig { const char* first; const char* second; };
+			constexpr std::array<ClassConfig, 9> CLASS_CONFIGS = {{
+				{"scout", "echo TF2BD_SIGNAL_SCOUT"},
+				{"soldier", "echo TF2BD_SIGNAL_SOLDIER"},
+				{"pyro", "echo TF2BD_SIGNAL_PYRO"},
+				{"demoman", "echo TF2BD_SIGNAL_DEMOMAN"},
+				{"heavyweapons", "echo TF2BD_SIGNAL_HEAVYWEAPONS"},
+				{"engineer", "echo TF2BD_SIGNAL_ENGINEER"},
+				{"medic", "echo TF2BD_SIGNAL_MEDIC"},
+				{"sniper", "echo TF2BD_SIGNAL_SNIPER"},
+				{"spy", "echo TF2BD_SIGNAL_SPY"}
+			}};
+			for (const auto& cls : CLASS_CONFIGS)
+			{
+				auto path = tfDir / "cfg" / mh::format("{}.cfg", cls.first);
+				std::ofstream file(path, std::ios::app);
+				if (file.is_open())
+					file << "\n" << cls.second << "\n";
+			}
+		}
+	}
+}
+
+ModeratorLogic::~ModeratorLogic()
+{
+	if (m_Settings)
+	{
+		if (auto tfDir = m_Settings->GetTFDir(); !tfDir.empty())
+		{
+			struct ClassConfig { const char* first; const char* second; };
+			constexpr std::array<ClassConfig, 9> CLASS_CONFIGS = {{
+				{"scout", "echo TF2BD_SIGNAL_SCOUT"},
+				{"soldier", "echo TF2BD_SIGNAL_SOLDIER"},
+				{"pyro", "echo TF2BD_SIGNAL_PYRO"},
+				{"demoman", "echo TF2BD_SIGNAL_DEMOMAN"},
+				{"heavyweapons", "echo TF2BD_SIGNAL_HEAVYWEAPONS"},
+				{"engineer", "echo TF2BD_SIGNAL_ENGINEER"},
+				{"medic", "echo TF2BD_SIGNAL_MEDIC"},
+				{"sniper", "echo TF2BD_SIGNAL_SNIPER"},
+				{"spy", "echo TF2BD_SIGNAL_SPY"}
+			}};
+			for (const auto& cls : CLASS_CONFIGS)
+			{
+				auto path = tfDir / "cfg" / mh::format("{}.cfg", cls.first);
+				std::ifstream infile(path);
+				if (infile.is_open())
+				{
+					std::string content;
+					std::string line;
+					std::string target = cls.second;
+					while (std::getline(infile, line))
+					{
+						if (line != target && line != target + "\r")
+						{
+							content += line + "\n";
+						}
+					}
+					infile.close();
+
+					// Remove the exact trailing newline we added if any, but writing exactly what we kept is fine.
+					while (!content.empty() && (content.back() == '\n' || content.back() == '\r'))
+						content.pop_back();
+					content += "\n"; // Add one single newline at EOF for good measure
+
+					std::ofstream outfile(path, std::ios::trunc);
+					if (outfile.is_open())
+					{
+						outfile << content;
+					}
+				}
+			}
+		}
+	}
 }
 
 PlayerMarks ModeratorLogic::GetPlayerAttributes(const SteamID& id) const

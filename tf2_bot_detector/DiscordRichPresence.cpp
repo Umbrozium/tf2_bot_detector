@@ -782,6 +782,7 @@ namespace
 		void Update() override;
 
 		void OnConsoleLineParsed(IWorldState& world, IConsoleLine& line) override;
+		void OnConsoleLineUnparsed(IWorldState& world, const std::string_view& text) override;
 		void OnLocalPlayerSpawned(IWorldState& world, TFClassType classType) override;
 
 	private:
@@ -920,6 +921,32 @@ void DiscordState::OnConsoleLineParsed(IWorldState& world, IConsoleLine& line)
 
 	default:
 		break;
+	}
+}
+
+void DiscordState::OnConsoleLineUnparsed(IWorldState& world, const std::string_view& text)
+{
+	m_Sentinel.check();
+
+	constexpr std::string_view prefix = "TF2BD_SIGNAL_";
+	if (text.starts_with(prefix))
+	{
+		auto classStr = text.substr(prefix.size());
+		TFClassType classType = TFClassType::Undefined;
+		if (classStr.starts_with("SCOUT")) classType = TFClassType::Scout;
+		else if (classStr.starts_with("SNIPER")) classType = TFClassType::Sniper;
+		else if (classStr.starts_with("SOLDIER")) classType = TFClassType::Soldier;
+		else if (classStr.starts_with("DEMOMAN")) classType = TFClassType::Demoman;
+		else if (classStr.starts_with("MEDIC")) classType = TFClassType::Medic;
+		else if (classStr.starts_with("HEAVYWEAPONS")) classType = TFClassType::Heavy;
+		else if (classStr.starts_with("PYRO")) classType = TFClassType::Pyro;
+		else if (classStr.starts_with("SPY")) classType = TFClassType::Spy;
+		else if (classStr.starts_with("ENGINEER")) classType = TFClassType::Engie;
+
+		if (classType != TFClassType::Undefined)
+		{
+			OnLocalPlayerSpawned(world, classType);
+		}
 	}
 }
 
