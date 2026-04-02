@@ -38,6 +38,7 @@ namespace
 	{
 	public:
 		ModeratorLogic(IWorldState& world, const Settings& settings, RCONActionManager& actionManager);
+		~ModeratorLogic();
 
 		void Update() override;
 
