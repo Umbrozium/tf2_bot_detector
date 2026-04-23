@@ -136,18 +136,25 @@ mh::task<std::string> HTTPClientImpl::GetStringAsync(URL url) const try
 		if (useFallback && url.m_Host == "raw.githubusercontent.com")
 		{
 			url.m_Host = "cdn.jsdelivr.net";
+
+			size_t refsHeadsPos = url.m_Path.find("/refs/heads/");
+			if (refsHeadsPos != std::string::npos)
+				url.m_Path.erase(refsHeadsPos, 11);
+			else
+			{
+				size_t refsTagsPos = url.m_Path.find("/refs/tags/");
+				if (refsTagsPos != std::string::npos)
+					url.m_Path.erase(refsTagsPos, 10);
+			}
+
 			size_t userSlash = url.m_Path.find('/', 1);
 			if (userSlash != std::string::npos)
 			{
 				size_t repoSlash = url.m_Path.find('/', userSlash + 1);
 				if (repoSlash != std::string::npos)
 				{
-					size_t branchSlash = url.m_Path.find('/', repoSlash + 1);
-					if (branchSlash != std::string::npos)
-					{
-						url.m_Path[branchSlash] = '@';
-						url.m_Path = "/gh" + url.m_Path;
-					}
+					url.m_Path[repoSlash] = '@';
+					url.m_Path = "/gh" + url.m_Path;
 				}
 			}
 		}
