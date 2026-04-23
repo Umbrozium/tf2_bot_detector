@@ -347,6 +347,10 @@ void SettingsWindow::OnDrawServiceIntegrationSettings()
 
 		ImGui::EnabledSwitch(m_Settings.m_AllowInternetUsage.value_or(false), [&](bool enabled)
 			{
+				if (ImGui::Checkbox("Fallback to alternative raw content domain", &m_Settings.m_FallbackToAlternativeRawContentDomain))
+					m_Settings.SaveFile();
+				ImGui::SetHoverTooltip("Uses cdn.jsdelivr.net instead of raw.githubusercontent.com if the latter is unreachable or fails.");
+
 				const auto GetSteamAPIModeString = [](SteamAPIMode mode)
 				{
 					switch (mode)

@@ -166,6 +166,8 @@ namespace tf2_bot_detector
 
 		bool m_LazyLoadAPIData = true;
 
+		bool m_FallbackToAlternativeRawContentDomain = false;
+
 		bool m_ConfigCompatibilityMode = true;
 
 		std::optional<ReleaseChannel> m_ReleaseChannel;

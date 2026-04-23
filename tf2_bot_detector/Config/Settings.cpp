@@ -447,7 +447,7 @@ std::shared_ptr<const HTTPClient> tf2_bot_detector::Settings::GetHTTPClient() co
 		return nullptr;
 
 	if (!m_HTTPClient)
-		m_HTTPClient = IHTTPClient::Create();
+		m_HTTPClient = IHTTPClient::Create([this] { return this->m_FallbackToAlternativeRawContentDomain; });
 
 	return m_HTTPClient;
 }
@@ -652,6 +652,7 @@ void Settings::Serialize(nlohmann::json& json) const
 				{ "auto_votekick_delay", m_AutoVotekickDelay },
 				{ "auto_mark", m_AutoMark },
 				{ "lazy_load_api_data", m_LazyLoadAPIData },
+				{ "fallback_to_alternative_raw_content_domain", m_FallbackToAlternativeRawContentDomain },
 				{ "config_compatibility_mode", m_ConfigCompatibilityMode },
 			}
 		},

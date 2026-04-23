@@ -6,6 +6,8 @@
 #include <mh/error/error_code_exception.hpp>
 #include <mh/text/case_insensitive_string.hpp>
 
+#include <atomic>
+
 #include "GlobalDispatcher.h"
 #include "HTTPClient.h"
 #include "HTTPHelpers.h"
@@ -26,12 +28,20 @@ namespace
 	class HTTPClientImpl final : public IHTTPClient
 	{
 	public:
+		HTTPClientImpl(std::function<bool()> isFallbackDomainEnabled = nullptr)
+			: m_IsFallbackDomainEnabled(std::move(isFallbackDomainEnabled))
+		{
+		}
+
 		std::string GetString(const URL& url) const override;
 		mh::task<std::string> GetStringAsync(URL url) const override;
 
 		RequestCounts GetRequestCounts() const override;
 
 	private:
+		std::function<bool()> m_IsFallbackDomainEnabled;
+		mutable std::atomic<bool> m_HasRawContentDomainFailed = false;
+
 		mutable std::mutex m_InnerClientMutex;
 		mutable std::map<std::string, std::shared_ptr<web::http::client::http_client>> m_InnerClients;
 		std::shared_ptr<web::http::client::http_client> GetInnerClient(const URL& url) const;
@@ -117,6 +127,31 @@ mh::task<std::string> HTTPClientImpl::GetStringAsync(URL url) const try
 	int32_t retryCount = 0;
 	while (true)
 	{
+		bool useFallback = false;
+		if (m_IsFallbackDomainEnabled && m_IsFallbackDomainEnabled())
+			useFallback = true;
+		if (m_HasRawContentDomainFailed)
+			useFallback = true;
+
+		if (useFallback && url.m_Host == "raw.githubusercontent.com")
+		{
+			url.m_Host = "cdn.jsdelivr.net";
+			size_t userSlash = url.m_Path.find('/', 1);
+			if (userSlash != std::string::npos)
+			{
+				size_t repoSlash = url.m_Path.find('/', userSlash + 1);
+				if (repoSlash != std::string::npos)
+				{
+					size_t branchSlash = url.m_Path.find('/', repoSlash + 1);
+					if (branchSlash != std::string::npos)
+					{
+						url.m_Path[branchSlash] = '@';
+						url.m_Path = "/gh" + url.m_Path;
+					}
+				}
+			}
+		}
+
 		using throttle_time_t = mh::thread_pool::clock_t::time_point;
 		throttle_time_t throttleTime{};
 		{
@@ -214,6 +249,11 @@ mh::task<std::string> HTTPClientImpl::GetStringAsync(URL url) const try
 				// give a good like 20 tries, since they are likely indicitive of an api being temporarily down
 				PrintRetryWarning();
 			}
+			else if (url.m_Host == "raw.githubusercontent.com")
+			{
+				m_HasRawContentDomainFailed = true;
+				retryDelayTime = 0s;
+			}
 			else
 			{
 				throw; // give up
@@ -221,7 +261,12 @@ mh::task<std::string> HTTPClientImpl::GetStringAsync(URL url) const try
 		}
 		catch (const web::http::http_exception&)
 		{
-			if (retryCount > 3)
+			if (url.m_Host == "raw.githubusercontent.com")
+			{
+				m_HasRawContentDomainFailed = true;
+				retryDelayTime = 0s;
+			}
+			else if (retryCount > 3)
 			{
 				// Give up after a few socket/timeout errors
 				throw;
@@ -260,7 +305,7 @@ auto HTTPClientImpl::GetRequestCounts() const -> RequestCounts
 	};
 }
 
-std::shared_ptr<IHTTPClient> tf2_bot_detector::IHTTPClient::Create()
+std::shared_ptr<IHTTPClient> tf2_bot_detector::IHTTPClient::Create(std::function<bool()> isFallbackDomainEnabled)
 {
-	return std::make_shared<HTTPClientImpl>();
+	return std::make_shared<HTTPClientImpl>(std::move(isFallbackDomainEnabled));
 }
