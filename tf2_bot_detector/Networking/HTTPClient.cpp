@@ -139,12 +139,12 @@ mh::task<std::string> HTTPClientImpl::GetStringAsync(URL url) const try
 
 			size_t refsHeadsPos = url.m_Path.find("/refs/heads/");
 			if (refsHeadsPos != std::string::npos)
-				url.m_Path.erase(refsHeadsPos, 11);
+				url.m_Path.erase(refsHeadsPos, 12);
 			else
 			{
 				size_t refsTagsPos = url.m_Path.find("/refs/tags/");
 				if (refsTagsPos != std::string::npos)
-					url.m_Path.erase(refsTagsPos, 10);
+					url.m_Path.erase(refsTagsPos, 11);
 			}
 
 			size_t userSlash = url.m_Path.find('/', 1);

@@ -2,6 +2,7 @@
 
 #include <mh/coroutine/task.hpp>
 
+#include <functional>
 #include <memory>
 #include <string>
 
