@@ -8,6 +8,10 @@ on:
       - '*.md'
       - '*.appinstaller_template'
 
+permissions:
+  packages: write
+  contents: read
+
 env:
   VCPKG_ROOT: ${{ github.workspace }}/submodules/vcpkg
   VCPKG_BINARY_SOURCES: 'clear;nuget,GitHub,readwrite'
@@ -97,15 +101,11 @@ jobs:
         submodules: true
 
     - name: Setup NuGet Credentials
-      run: >
-        nuget sources add
-        -source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-        -storepasswordincleartext
-        -name "GitHub"
-        -username "${{ github.repository_owner }}"
-        -password "${{ secrets.GITHUB_TOKEN }}"
+      run: |
+        nuget sources add -source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" -storepasswordincleartext -name "GitHub" -username "${{ github.repository_owner }}" -password "${{ secrets.GITHUB_TOKEN }}"
+        nuget sources add -source "https://nuget.pkg.github.com/surepy/index.json" -storepasswordincleartext -name "surepy" -username "${{ github.repository_owner }}" -password "${{ secrets.GITHUB_TOKEN }}"
 
-    - uses: seanmiddleditch/gha-setup-ninja@v4
+
     - name: Configure build tools
       uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
