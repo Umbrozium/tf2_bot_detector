@@ -63,16 +63,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2019]
+        os: [windows-latest]
         triplet: [x86-windows, x64-windows]
         discord_integration: [true]
         # discord_integration: [true, false]        
         build_type: [Debug, Release]
         include:
-          - os: windows-2019
+          - os: windows-latest
             triplet: x86-windows
             tf2bd_arch: x86
-          - os: windows-2019
+          - os: windows-latest
             triplet: x64-windows
             tf2bd_arch: x64
 

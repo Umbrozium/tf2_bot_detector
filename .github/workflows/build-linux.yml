@@ -63,13 +63,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-latest]
         triplet: [ x64-ubuntu ]
         # discord_integration: [ false ] # fix soon lol
         discord_integration: [true, false]        
         build_type: [ RelWithDebInfo, Release ]
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             triplet: x64-ubuntu
             tf2bd_arch: x64
 
