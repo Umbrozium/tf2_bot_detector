@@ -1,39 +1,25 @@
-diff --git a/cpp/include/mh/reflection/enum.hpp b/cpp/include/mh/reflection/enum.hpp
-index 361a07d..bf772dd 100644
---- a/cpp/include/mh/reflection/enum.hpp
-+++ b/cpp/include/mh/reflection/enum.hpp
-@@ -262,7 +262,7 @@ struct mh::formatter<::mh::enum_fmt_t<T>, CharT>
- 	}
+diff --git a/cpp/include/mh/text/format.hpp b/cpp/include/mh/text/format.hpp
+index 17b964d..2de4451 100644
+--- a/cpp/include/mh/text/format.hpp
++++ b/cpp/include/mh/text/format.hpp
+@@ -7,6 +7,20 @@
+ #if __has_include(<fmt/format.h>)
  
- 	template<typename FormatContext>
--	auto format(const ::mh::enum_fmt_t<T>& rc, FormatContext& ctx)
-+	auto format(const ::mh::enum_fmt_t<T>& rc, FormatContext& ctx) const
- 	{
- 		const auto valueName = ::mh::enum_type<T>::try_find_name(rc.m_Value);
+ #include <fmt/format.h>
++#include <fmt/std.h>
++#include <fmt/ostream.h>
++#include <iomanip>
++#include <string>
++#include <string_view>
++
++template <typename CharT>
++struct fmt::formatter<decltype(std::quoted(std::declval<const CharT*>())), CharT> : fmt::ostream_formatter {};
++
++template <typename CharT, typename Traits, typename Allocator>
++struct fmt::formatter<decltype(std::quoted(std::declval<std::basic_string<CharT, Traits, Allocator>>())), CharT> : fmt::ostream_formatter {};
++
++template <typename CharT, typename Traits>
++struct fmt::formatter<decltype(std::quoted(std::declval<std::basic_string_view<CharT, Traits>>())), CharT> : fmt::ostream_formatter {};
  
-diff --git a/cpp/include/mh/source_location.hpp b/cpp/include/mh/source_location.hpp
-index 05e2b89..f5a22ec 100644
---- a/cpp/include/mh/source_location.hpp
-+++ b/cpp/include/mh/source_location.hpp
-@@ -137,7 +137,7 @@ struct mh::formatter<mh::source_location, CharT>
- 	}
- 
- 	template<typename FormatContext>
--	auto format(const mh::source_location& loc, FormatContext& ctx)
-+	auto format(const mh::source_location& loc, FormatContext& ctx) const
- 	{
- 		const auto path = [&]() -> std::string_view
- 		{
-diff --git a/cpp/include/mh/text/formatters/error_code.hpp b/cpp/include/mh/text/formatters/error_code.hpp
-index 409c0b2..5cfc413 100644
---- a/cpp/include/mh/text/formatters/error_code.hpp
-+++ b/cpp/include/mh/text/formatters/error_code.hpp
-@@ -52,7 +52,7 @@ struct mh::formatter<T, CharT, std::enable_if_t<std::is_same_v<T, std::error_cod
- 	}
- 
- 	template<typename FormatContext>
--	auto format(const T& ec, FormatContext& ctx)
-+	auto format(const T& ec, FormatContext& ctx) const
- 	{
- 		auto it = ctx.out();
- 
+ #if __has_include(<fmt/xchar.h>)
+ 	#include <fmt/xchar.h>
