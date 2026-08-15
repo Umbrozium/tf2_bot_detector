@@ -94,8 +94,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0
-        submodules: true
+        submodules: recursive
+
+    - name: Apply mh_stuff submodule patch for modern fmt support
+      run: |
+        cd submodules/mh_stuff
+        git apply ../../patches/mh_stuff_fmt_v9.patch
 
     - name: Add universe respository to apt
       run: sudo add-apt-repository universe && sudo apt-get update

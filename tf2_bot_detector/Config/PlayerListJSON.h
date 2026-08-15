@@ -245,7 +245,7 @@ struct mh::formatter<tf2_bot_detector::PlayerAttributesList, CharT>
 	constexpr auto parse(basic_format_parse_context<CharT>& ctx) const noexcept { return ctx.begin(); }
 
 	template<typename FormatContext>
-	auto format(const tf2_bot_detector::PlayerAttributesList& list, FormatContext& ctx)
+	auto format(const tf2_bot_detector::PlayerAttributesList& list, FormatContext& ctx) const
 	{
 		bool printed = false;
 		auto it = ctx.out();
@@ -272,7 +272,7 @@ struct mh::formatter<tf2_bot_detector::PlayerMarks::Mark, CharT>
 	constexpr auto parse(basic_format_parse_context<CharT>& ctx) const noexcept { return ctx.begin(); }
 
 	template<typename FormatContext>
-	auto format(const tf2_bot_detector::PlayerMarks::Mark& mark, FormatContext& ctx)
+	auto format(const tf2_bot_detector::PlayerMarks::Mark& mark, FormatContext& ctx) const
 	{
 		return mh::format_to(ctx.out(), MH_FMT_STRING("{} ({})"), std::quoted(mark.m_FileName), mark.m_Attributes);
 	}
