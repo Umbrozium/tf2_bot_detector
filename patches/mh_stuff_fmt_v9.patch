@@ -1,25 +1,27 @@
 diff --git a/cpp/include/mh/text/format.hpp b/cpp/include/mh/text/format.hpp
-index 17b964d..2de4451 100644
+index 17b964d..8525ffe 100644
 --- a/cpp/include/mh/text/format.hpp
 +++ b/cpp/include/mh/text/format.hpp
-@@ -7,6 +7,20 @@
+@@ -7,6 +7,22 @@
  #if __has_include(<fmt/format.h>)
  
  #include <fmt/format.h>
 +#include <fmt/std.h>
-+#include <fmt/ostream.h>
 +#include <iomanip>
 +#include <string>
 +#include <string_view>
++#include <type_traits>
 +
-+template <typename CharT>
-+struct fmt::formatter<decltype(std::quoted(std::declval<const CharT*>())), CharT> : fmt::ostream_formatter {};
++#if __has_include(<fmt/ostream.h>)
++	#include <fmt/ostream.h>
++#endif
 +
-+template <typename CharT, typename Traits, typename Allocator>
-+struct fmt::formatter<decltype(std::quoted(std::declval<std::basic_string<CharT, Traits, Allocator>>())), CharT> : fmt::ostream_formatter {};
-+
-+template <typename CharT, typename Traits>
-+struct fmt::formatter<decltype(std::quoted(std::declval<std::basic_string_view<CharT, Traits>>())), CharT> : fmt::ostream_formatter {};
++template <typename T, typename CharT>
++struct fmt::formatter<T, CharT, std::enable_if_t<
++    std::is_same_v<T, decltype(std::quoted(std::declval<const CharT*>()))> ||
++    std::is_same_v<T, decltype(std::quoted(std::declval<std::basic_string<CharT>>()))> ||
++    std::is_same_v<T, decltype(std::quoted(std::declval<std::basic_string_view<CharT>>()))>
++>> : fmt::ostream_formatter {};
  
  #if __has_include(<fmt/xchar.h>)
  	#include <fmt/xchar.h>
