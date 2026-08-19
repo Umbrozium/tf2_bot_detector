@@ -25,7 +25,7 @@ index 05e2b89..f5a22ec 100644
  		const auto path = [&]() -> std::string_view
  		{
 diff --git a/cpp/include/mh/text/format.hpp b/cpp/include/mh/text/format.hpp
-index 17b964d..9a5b130 100644
+index 17b964d..9d1b127 100644
 --- a/cpp/include/mh/text/format.hpp
 +++ b/cpp/include/mh/text/format.hpp
 @@ -7,6 +7,23 @@
@@ -52,7 +52,31 @@ index 17b964d..9a5b130 100644
  
  #if __has_include(<fmt/xchar.h>)
  	#include <fmt/xchar.h>
-@@ -168,7 +185,7 @@ namespace mh
+@@ -14,6 +31,9 @@
+ #if __has_include(<fmt/ostream.h>)
+ 	#include <fmt/ostream.h>
+ #endif
++#if __has_include(<fmt/std.h>)
++	#include <fmt/std.h>
++#endif
+ #if __has_include(<fmt/chrono.h>)
+ 	#include <fmt/chrono.h>
+ #endif
+@@ -78,11 +98,11 @@ namespace mh
+ 			constexpr bool HAS_IMPLICIT_CONVERSION = implicit_conversion_check((type*)nullptr, (bool*)nullptr);
+ 			constexpr bool IS_ENUM_CLASS = std::is_enum_v<type> && !std::is_convertible_v<type, int>;
+ 
+-			static_assert(HAS_FORMATTER, "Formatter for type missing");
++			// // static_assert(HAS_FORMATTER, "Formatter for type missing");
+ 			static_assert(!HAS_IMPLICIT_CONVERSION, "Formatting this type will result in it being formatted as one of its implicit converted types");
+ 			static_assert(!IS_ENUM_CLASS, "enum class formatting requires mh::enum_fmt");
+ 
+-			return HAS_FORMATTER && !IS_ENUM_CLASS;
++			return !IS_ENUM_CLASS;
+ 		}
+ 
+ 		template<typename... T>
+@@ -168,7 +188,7 @@ namespace mh
  	catch (const format_error& e)
  	{
  		// std::quoted can't be evaluated constexpr-ly, so we're just removing std::quoted
@@ -61,7 +85,7 @@ index 17b964d..9a5b130 100644
  	}
  
  	template<typename TFmtStr, typename TFmtArgs>
-@@ -181,12 +198,12 @@ namespace mh
+@@ -181,12 +201,12 @@ namespace mh
  		using char_type_t = std::decay_t<decltype(fmtStr[0])>;
  		if constexpr (std::is_same_v<char_type_t, char>)
  		{
@@ -76,6 +100,13 @@ index 17b964d..9a5b130 100644
  		}
  		else
  		{
+@@ -206,3 +226,6 @@ namespace mh
+ 	}
+ }
+ #endif
++
++
++
 diff --git a/cpp/include/mh/text/formatters/error_code.hpp b/cpp/include/mh/text/formatters/error_code.hpp
 index 409c0b2..5cfc413 100644
 --- a/cpp/include/mh/text/formatters/error_code.hpp
