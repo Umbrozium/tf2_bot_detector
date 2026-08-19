@@ -134,7 +134,10 @@ namespace tf2_bot_detector
 	}
 }
 
+#if __has_include(<fmt/ostream.h>)
 #include <fmt/ostream.h>
 template<typename CharT, typename TRep, typename TPeriod>
 struct fmt::formatter<tf2_bot_detector::HumanDuration<TRep, TPeriod>, CharT> : fmt::ostream_formatter {};
+#endif
+
 

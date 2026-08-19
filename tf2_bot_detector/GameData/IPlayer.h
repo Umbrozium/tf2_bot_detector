@@ -150,7 +150,10 @@ std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>&
 		return os << *player;
 }
 
+#if __has_include(<fmt/ostream.h>)
 #include <fmt/ostream.h>
 template<typename CharT>
 struct fmt::formatter<tf2_bot_detector::IPlayer, CharT> : fmt::ostream_formatter {};
+#endif
+
 
