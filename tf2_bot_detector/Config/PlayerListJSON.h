@@ -239,8 +239,13 @@ MH_ENUM_REFLECT_BEGIN(tf2_bot_detector::PlayerAttribute)
 	MH_ENUM_REFLECT_VALUE(Suspicious)
 MH_ENUM_REFLECT_END()
 
+template<> struct fmt::is_range<tf2_bot_detector::PlayerAttributesList> : std::false_type {};
+template<> struct fmt::is_range<tf2_bot_detector::PlayerMarks::Mark> : std::false_type {};
+template<> struct fmt::is_range<tf2_bot_detector::PlayerMarks> : std::false_type {};
+
+
 template<typename CharT>
-struct mh::formatter<tf2_bot_detector::PlayerAttributesList, CharT>
+struct fmt::formatter<tf2_bot_detector::PlayerAttributesList, CharT>
 {
 	constexpr auto parse(basic_format_parse_context<CharT>& ctx) const noexcept { return ctx.begin(); }
 
@@ -267,7 +272,7 @@ struct mh::formatter<tf2_bot_detector::PlayerAttributesList, CharT>
 };
 
 template<typename CharT>
-struct mh::formatter<tf2_bot_detector::PlayerMarks::Mark, CharT>
+struct fmt::formatter<tf2_bot_detector::PlayerMarks::Mark, CharT>
 {
 	constexpr auto parse(basic_format_parse_context<CharT>& ctx) const noexcept { return ctx.begin(); }
 
@@ -279,7 +284,7 @@ struct mh::formatter<tf2_bot_detector::PlayerMarks::Mark, CharT>
 };
 
 template<typename CharT>
-struct mh::formatter<tf2_bot_detector::PlayerMarks, CharT>
+struct fmt::formatter<tf2_bot_detector::PlayerMarks, CharT>
 {
 	constexpr auto parse(basic_format_parse_context<CharT>& ctx) const noexcept { return ctx.begin(); }
 
@@ -294,3 +299,5 @@ struct mh::formatter<tf2_bot_detector::PlayerMarks, CharT>
 		return it;
 	}
 };
+
+

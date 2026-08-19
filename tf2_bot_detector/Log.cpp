@@ -117,7 +117,7 @@ void LogManager::Init()
 		std::lock_guard lock(m_LogMutex);
 
 		const auto t = ToTM(tfbd_clock_t::now());
-		const mh::fmtstr<128> timestampStr("{}", std::put_time(&t, "%Y-%m-%d_%H-%M-%S"));
+		const mh::fmtstr<128> timestampStr("{:%Y-%m-%d_%H-%M-%S}", t);
 
 		// Pick file name for main log file
 		{
@@ -517,3 +517,4 @@ namespace tf2_bot_detector
 	LOG_DEFINITION_HELPER(LogFatalException, LogSeverity::Fatal, LogVisibility::Default);
 }
 #undef LOG_DEFINITION_HELPER
+
