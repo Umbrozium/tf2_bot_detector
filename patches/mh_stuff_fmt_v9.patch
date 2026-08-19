@@ -24,6 +24,33 @@ index 05e2b89..f5a22ec 100644
  	{
  		const auto path = [&]() -> std::string_view
  		{
+diff --git a/cpp/include/mh/text/format.hpp b/cpp/include/mh/text/format.hpp
+index 17b964d..9ea1b85 100644
+--- a/cpp/include/mh/text/format.hpp
++++ b/cpp/include/mh/text/format.hpp
+@@ -7,6 +7,22 @@
+ #if __has_include(<fmt/format.h>)
+ 
+ #include <fmt/format.h>
++#include <fmt/std.h>
++#include <iomanip>
++#include <string>
++#include <string_view>
++#include <type_traits>
++
++#if __has_include(<fmt/ostream.h>)
++	#include <fmt/ostream.h>
++#endif
++
++template <typename T, typename CharT>
++struct fmt::formatter<T, CharT, std::enable_if_t<
++    std::is_same_v<std::decay_t<T>, decltype(std::quoted(std::declval<const CharT*>()))> ||
++    std::is_same_v<std::decay_t<T>, decltype(std::quoted(std::declval<std::basic_string<CharT>>()))> ||
++    std::is_same_v<std::decay_t<T>, decltype(std::quoted(std::declval<std::basic_string_view<CharT>>()))>
++>> : fmt::ostream_formatter {};
+ 
+ #if __has_include(<fmt/xchar.h>)
+ 	#include <fmt/xchar.h>
 diff --git a/cpp/include/mh/text/formatters/error_code.hpp b/cpp/include/mh/text/formatters/error_code.hpp
 index 409c0b2..5cfc413 100644
 --- a/cpp/include/mh/text/formatters/error_code.hpp
