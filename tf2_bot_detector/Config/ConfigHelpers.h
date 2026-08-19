@@ -73,10 +73,12 @@ namespace tf2_bot_detector
 	}
 }
 
+#if __has_include(<fmt/ostream.h>)
 #include <fmt/ostream.h>
 
 template <typename CharT>
 struct fmt::formatter<tf2_bot_detector::ConfigSchemaInfo, CharT> : fmt::ostream_formatter {};
+#endif
 
 namespace tf2_bot_detector
 {
