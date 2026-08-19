@@ -69,12 +69,5 @@ void DifferingLobbyReceivedLine::Print(const PrintArgs& args) const
 		m_NewLobby, m_CurrentLobby, int(m_ConnectedToMatchServer), int(m_HasLobby), int(m_AssignedMatchEnded));
 }
 
-namespace tf2_bot_detector
-{
-	template<typename CharT, typename Traits>
-	std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os,
-		const DifferingLobbyReceivedLine::Lobby& lobby)
-	{
-		return os << lobby.m_LobbyID << "/Match" << lobby.m_MatchID << "/Lobby" << lobby.m_LobbyNumber;
-	}
 }
+

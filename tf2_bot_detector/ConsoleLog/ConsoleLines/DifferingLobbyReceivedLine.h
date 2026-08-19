@@ -54,4 +54,15 @@ namespace tf2_bot_detector
 		bool m_HasLobby : 1 = false;
 		bool m_AssignedMatchEnded : 1 = false;
 	};
+
+	template<typename CharT, typename Traits>
+	std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, const DifferingLobbyReceivedLine::Lobby& lobby)
+	{
+		return os << lobby.m_LobbyID << "/Match" << lobby.m_MatchID << "/Lobby" << lobby.m_LobbyNumber;
+	}
 }
+
+#include <fmt/ostream.h>
+
+template <typename CharT>
+struct fmt::formatter<tf2_bot_detector::DifferingLobbyReceivedLine::Lobby, CharT> : fmt::ostream_formatter {};
