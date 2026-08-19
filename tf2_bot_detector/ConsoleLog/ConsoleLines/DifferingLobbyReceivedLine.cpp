@@ -69,5 +69,3 @@ void DifferingLobbyReceivedLine::Print(const PrintArgs& args) const
 		m_NewLobby, m_CurrentLobby, int(m_ConnectedToMatchServer), int(m_HasLobby), int(m_AssignedMatchEnded));
 }
 
-}
-
