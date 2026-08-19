@@ -59,3 +59,8 @@ namespace tf2_bot_detector
 		return os;
 	}
 }
+
+#include <fmt/ostream.h>
+template<typename CharT>
+struct fmt::formatter<Version, CharT> : fmt::ostream_formatter {};
+

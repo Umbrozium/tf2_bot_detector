@@ -84,3 +84,8 @@ namespace std
 {
 	template<> struct is_error_condition_enum<tf2_bot_detector::HTTPResponseCode> : true_type {};
 }
+
+#include <fmt/ostream.h>
+template<typename CharT>
+struct fmt::formatter<tf2_bot_detector::URL, CharT> : fmt::ostream_formatter {};
+

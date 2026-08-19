@@ -149,3 +149,8 @@ std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>&
 	else
 		return os << *player;
 }
+
+#include <fmt/ostream.h>
+template<typename CharT>
+struct fmt::formatter<tf2_bot_detector::IPlayer, CharT> : fmt::ostream_formatter {};
+

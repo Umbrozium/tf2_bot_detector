@@ -1078,3 +1078,12 @@ std::unique_ptr<IDRPManager> IDRPManager::Create(const Settings& settings, IWorl
 {
 	return std::make_unique<DiscordState>(settings, world);
 }
+
+#include <fmt/ostream.h>
+template<typename CharT> struct fmt::formatter<discord::ActivityTimestamps, CharT> : fmt::ostream_formatter {};
+template<typename CharT> struct fmt::formatter<discord::ActivityAssets, CharT> : fmt::ostream_formatter {};
+template<typename CharT> struct fmt::formatter<discord::PartySize, CharT> : fmt::ostream_formatter {};
+template<typename CharT> struct fmt::formatter<discord::ActivityParty, CharT> : fmt::ostream_formatter {};
+template<typename CharT> struct fmt::formatter<discord::ActivitySecrets, CharT> : fmt::ostream_formatter {};
+template<typename CharT> struct fmt::formatter<discord::Activity, CharT> : fmt::ostream_formatter {};
+

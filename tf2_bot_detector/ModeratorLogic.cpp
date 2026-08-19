@@ -1459,3 +1459,9 @@ bool ModeratorLogic::VoteKickIgnoresTeamState() {
 
 	return false;
 }
+
+#include <fmt/ostream.h>
+template<typename CharT>
+struct fmt::formatter<tf2_bot_detector::ModeratorLogic::Cheater, CharT> : fmt::ostream_formatter {};
+
+
