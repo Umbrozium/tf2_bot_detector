@@ -71,7 +71,15 @@ namespace tf2_bot_detector
 			<< info.m_Version << '/'
 			<< info.m_Type << ".schema.json";
 	}
+}
 
+#include <fmt/ostream.h>
+
+template <typename CharT>
+struct fmt::formatter<tf2_bot_detector::ConfigSchemaInfo, CharT> : fmt::ostream_formatter {};
+
+namespace tf2_bot_detector
+{
 	struct ConfigFileInfo
 	{
 		std::vector<std::string> m_Authors;
@@ -283,3 +291,4 @@ namespace std
 {
 	template<> struct is_error_condition_enum<tf2_bot_detector::ConfigErrorType> : true_type {};
 }
+
