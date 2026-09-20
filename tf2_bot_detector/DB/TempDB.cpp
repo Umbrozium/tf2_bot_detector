@@ -40,11 +40,11 @@ namespace
 		std::optional<SQLite::Database> m_Connection;
 	};
 
-	static std::string CreateDBPath()
+	static std::filesystem::path CreateDBPath()
 	{
 		const auto folderPath = IFilesystem::Get().ResolvePath("temp/db", PathUsage::WriteLocal);
 		std::filesystem::create_directories(folderPath);
-		return (folderPath / "tf2bd_temp_db.sqlite").string();
+		return folderPath / "tf2bd_temp_db.sqlite";
 	}
 
 	struct BASETABLE : TableDefinition
@@ -94,7 +94,7 @@ namespace
 		if (const auto currentUserVersion = m_Connection->execAndGet("PRAGMA user_version").getInt();
 			currentUserVersion != DB_VERSION)
 		{
-			LogWarning("Current {} version = {}. Deleting and recreating...", CreateDBPath(), currentUserVersion);
+			LogWarning("Current {} version = {}. Deleting and recreating...", CreateDBPath().string(), currentUserVersion);
 			m_Connection.reset();
 			std::filesystem::remove(CreateDBPath());
 			Connect();
@@ -226,7 +226,9 @@ SELECT min({col_AccountID}) AS {col_AccountID}, {col_CreationTime} FROM {tbl_Acc
 	void TempDB::Connect()
 	{
 		assert(!m_Connection.has_value());
-		m_Connection.emplace(CreateDBPath(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE | SQLite::OPEN_FULLMUTEX);
+		auto dbPath = CreateDBPath();
+		auto u8path = dbPath.u8string();
+		m_Connection.emplace(std::string(u8path.begin(), u8path.end()), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE | SQLite::OPEN_FULLMUTEX);
 	}
 
 	void TempDB::Store(const LogsTFCacheInfo& info) try

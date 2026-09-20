@@ -15,7 +15,7 @@ namespace tf2_bot_detector
 	public:
 		virtual ~IHTTPClient() = default;
 
-		static std::shared_ptr<IHTTPClient> Create();
+		static std::shared_ptr<IHTTPClient> Create(std::function<bool()> isFallbackDomainEnabled = nullptr);
 
 		virtual std::string GetString(const URL& url) const = 0;
 		virtual mh::task<std::string> GetStringAsync(URL url) const = 0;

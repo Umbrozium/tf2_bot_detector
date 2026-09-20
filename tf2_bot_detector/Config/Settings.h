@@ -93,7 +93,8 @@ namespace tf2_bot_detector
 		// print to party chat the summary of current game.
 		bool m_AutoChatWarningsConnectingPartyPrintSummary = true;
 
-		// bool m_AutoChatWarningsPartyIgnore[4] = { false, false, false, false };
+		std::array<bool, 4> m_AutoChatWarningsIgnore = { false, false, false, false };
+		std::array<bool, 4> m_AutoChatWarningsPartyIgnore = { false, false, false, false };
 
 		// (unimplemented/scrapped)
 		bool m_AutoChatWarningsMarkedVSNotifications = true;
@@ -164,6 +165,8 @@ namespace tf2_bot_detector
 		bool m_AutoLaunchTF2 = false;
 
 		bool m_LazyLoadAPIData = true;
+
+		bool m_FallbackToAlternativeRawContentDomain = false;
 
 		bool m_ConfigCompatibilityMode = true;
 

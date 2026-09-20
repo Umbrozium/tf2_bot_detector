@@ -40,6 +40,7 @@ namespace
 	{
 	public:
 		ModeratorLogic(IWorldState& world, const Settings& settings, RCONActionManager& actionManager);
+		~ModeratorLogic();
 
 		void Update() override;
 
@@ -105,6 +106,9 @@ namespace
 
 			// same as above, but we don't want to spam party chat.
 			bool m_PartyWarned = false;
+
+			// true if we've already printed the actual game username for a marked player
+			bool m_PartyWarnedNameResolved = false;
 
 			// ignore rules for this player
 			// reason: if you have a hilariously agressive rule and
@@ -224,6 +228,7 @@ std::string listMarkFiles(PlayerMarks& marks) {
 // lazy and dumb function to convert player marks to string
 std::string marksToString(PlayerMarks& marks) {
 	PlayerAttributesList attribute{ 0 };
+	attribute.SetAttribute(static_cast<PlayerAttribute>(0), false);
 
 	// combine all the m_Marks to one attributeList
 	for (const auto& mark : marks.m_Marks)
@@ -253,6 +258,28 @@ std::string marksToString(PlayerMarks& marks) {
 	}
 
 	return attrib_summary;
+}
+
+static PlayerMarks FilterMarks(const PlayerMarks& marks, const std::array<bool, 4>& ignoreList)
+{
+	PlayerMarks filtered;
+	for (const auto& mark : marks.m_Marks)
+	{
+		PlayerAttributesList attr = mark.m_Attributes;
+		for (size_t i = 0; i < 4; ++i)
+		{
+			if (ignoreList[i])
+				attr.SetAttribute(static_cast<PlayerAttribute>(i), false);
+		}
+		
+		if (!attr.empty())
+		{
+			auto newMark = mark;
+			newMark.m_Attributes = attr;
+			filtered.m_Marks.push_back(newMark);
+		}
+	}
+	return filtered;
 }
 
 std::unique_ptr<IModeratorLogic> IModeratorLogic::Create(IWorldState& world,
@@ -392,6 +419,9 @@ void ModeratorLogic::OnChatMsg(IWorldState& world, IPlayer& player, const std::s
 /// <param name="initialized"></param>
 void ModeratorLogic::OnLocalPlayerInitialized(IWorldState & world, bool initialized)
 {
+	if (!initialized)
+		return;
+
 	//world.GetMapName()
 	m_ActionManager->QueueAction<GenericCommandAction>("exec tf2bd/OnGameJoin");
 
@@ -404,9 +434,10 @@ void ModeratorLogic::OnLocalPlayerInitialized(IWorldState & world, bool initiali
 
 		for (IPlayer& player : m_World->GetLobbyMembers())
 		{
-			if (!m_PlayerList.GetPlayerAttributes(player).empty()) {
+			auto rawMarks = GetPlayerAttributes(player);
+			auto partyMarks = FilterMarks(rawMarks, m_Settings->m_AutoChatWarningsPartyIgnore);
 
-				auto marks = GetPlayerAttributes(player);
+			if (!partyMarks.empty()) {
 
 				std::string username = player.GetNameSafe();
 
@@ -428,8 +459,8 @@ void ModeratorLogic::OnLocalPlayerInitialized(IWorldState & world, bool initiali
 						"{}: {} - {} ({})",
 						markedPlayerCount,
 						username,
-						marksToString(marks),
-						marks.m_Marks.front().m_FileName
+						marksToString(partyMarks),
+						partyMarks.m_Marks.front().m_FileName
 					).c_str()
 				);
 				++markedPlayerCount;
@@ -587,6 +618,7 @@ void ModeratorLogic::HandleConnectedEnemyCheaters(const std::vector<Cheater>& en
 	bool needsWarning = false;
 	std::vector<std::string> chatMsgCheaterNames;
 	std::multimap<std::string, Cheater> cheaterDebugWarnings;
+	std::vector<IPlayer*> cheatersToWarn;
 	for (auto& cheater : enemyCheaters)
 	{
 		// Theoretically this should never happen, but don't embarass ourselves
@@ -602,9 +634,8 @@ void ModeratorLogic::HandleConnectedEnemyCheaters(const std::vector<Cheater>& en
 		// 2. m_WarnedOnce is false
 		if (!m_Settings->m_ChatWarningSendOnce || !cheaterData.m_WarnedOnce) {
 			chatMsgCheaterNames.emplace_back(cheater->GetNameSafe());
+			cheatersToWarn.push_back(&cheater.m_Player.get());
 		}
-		// we've warned for this guy, dont send again if m_ChatWarningSendOnce is true
-		cheaterData.m_WarnedOnce = true;
 
 		if (isBotLeader)
 		{
@@ -660,6 +691,11 @@ void ModeratorLogic::HandleConnectedEnemyCheaters(const std::vector<Cheater>& en
 				Log({ 1, 0, 0, 1 }, logMsg);
 				// used to be CHEATER_WARNING_INTERVAL
 				m_NextCheaterWarningTime = now + std::chrono::seconds(m_Settings->m_ChatWarningInterval);
+				
+				// we've warned for this guy, dont send again if m_ChatWarningSendOnce is true
+				for (IPlayer* p : cheatersToWarn) {
+					p->GetOrCreateData<PlayerExtraData>().m_WarnedOnce = true;
+				}
 			}
 		}
 		else
@@ -855,52 +891,48 @@ void ModeratorLogic::HandleConnectingMarkedPlayers(const std::vector<Cheater>& c
 	}
 
 	mh::fmtstr<128> chatMsg;
+	std::vector<Cheater> cheatersToActuallyWarn;
 
 	if (unwarnedCheaters.size() == 1)
 	{
-		auto& cheaterData = unwarnedCheaters.at(0)->GetOrCreateData<PlayerExtraData>();
+		auto& cheater = unwarnedCheaters.at(0);
+		auto& cheaterData = cheater->GetOrCreateData<PlayerExtraData>();
 		if (cheaterData.m_PartyWarned)
 			return;
 
-		tf2_bot_detector::IPlayer& player = unwarnedCheaters.at(0).m_Player.get();
-		PlayerMarks marks = unwarnedCheaters.at(0).m_Marks;
+		tf2_bot_detector::IPlayer& player = cheater.m_Player.get();
+		PlayerMarks marks = cheater.m_Marks;
 		SteamID steamid = player.GetSteamID();
 
-		// this looks ugly, but realistically you shouldn't be using this software with steamapi disabled.
-		std::string username = "";
-
-		// attempt to get a "true" username from steamapi, if enabled.
-		if (m_Settings->IsSteamAPIAvailable()) {
-			auto summary = player.GetPlayerSummary();
-
-			// steamapi didn't get the name yet, exit the function and this function will run again next loop.
-			if (!summary.has_value()) {
-				Log(steamid.str() + " - steamapi didnt recieve info, waiting until we receve data for this player.");
-				return;
+		std::string username = player.GetNameSafe();
+		if (username.empty()) {
+			if (m_Settings->IsSteamAPIAvailable()) {
+				auto summary = player.GetPlayerSummary();
+				if (summary.has_value()) {
+					username = summary.value().m_Nickname;
+				}
 			}
-
-			username = (summary.value().m_Nickname);
+		}
+		if (username.empty()) {
+			username = steamid.str();
 		}
 
-		// move this into a func
 		size_t pos;
 		while ((pos = username.find(";")) != std::string::npos) {
 			username.replace(pos, 1, "");
 		}
 
-		// TODO: cite multiple files?
 		tf2_bot_detector::ConfigFileName fileName = marks.m_Marks.front().m_FileName;
-
 		if (std::filesystem::exists(fileName)) {
 			fileName = std::filesystem::path(fileName).filename().string();
 		}
 
 		chatMsg.fmt("[tf2bd] WARN: Marked Player ({}) Joining ({} - {}).", username, marksToString(marks), fileName);
+		cheatersToActuallyWarn.push_back(cheater);
 	}
 	else
 	{
 		std::string msg = "";
-
 		for (auto& p : unwarnedCheaters) {
 			auto& cheaterData = p->GetOrCreateData<PlayerExtraData>();
 			if (cheaterData.m_PartyWarned)
@@ -910,24 +942,19 @@ void ModeratorLogic::HandleConnectingMarkedPlayers(const std::vector<Cheater>& c
 			PlayerMarks marks = p.m_Marks;
 			SteamID steamid = player.GetSteamID();
 
-			// this looks ugly, but realistically you shouldn't be using this software with steamapi disabled.
-			std::string name = "";
-
-			// attempt to get a "true" username from steamapi, if enabled.
-			if (m_Settings->IsSteamAPIAvailable()) {
-				auto summary = player.GetPlayerSummary();
-
-				// steamapi didn't get the name yet, exit the function and this function will run again next loop.
-				if (!summary.has_value()) {
-					Log(steamid.str() + " - steamapi didnt recieve info, waiting until we receve data for this player." );
-					return;
+			std::string name = player.GetNameSafe();
+			if (name.empty()) {
+				if (m_Settings->IsSteamAPIAvailable()) {
+					auto summary = player.GetPlayerSummary();
+					if (summary.has_value()) {
+						name = summary.value().m_Nickname;
+					}
 				}
-
-				name = (summary.value().m_Nickname);
+			}
+			if (name.empty()) {
+				name = steamid.str();
 			}
 
-			// sanitize our name;
-			// move this into a func
 			size_t pos;
 			while ((pos = name.find(";")) != std::string::npos) {
 				name.replace(pos, 1, "");
@@ -938,25 +965,29 @@ void ModeratorLogic::HandleConnectingMarkedPlayers(const std::vector<Cheater>& c
 				name += "..";
 			}
 
-			// TODO: cite multiple files?
 			tf2_bot_detector::ConfigFileName fileName = marks.m_Marks.front().m_FileName;
-
 			if (std::filesystem::exists(fileName)) {
 				fileName = std::filesystem::path(fileName).filename().string();
 			}
 
 			msg += fmt::format("{} - {}, ", name, marksToString(marks), fileName);
+			cheatersToActuallyWarn.push_back(p);
 		}
 
-		msg.pop_back();
-		msg.pop_back();
+		if (cheatersToActuallyWarn.empty())
+			return;
 
-		chatMsg.fmt("[tf2bd] WARN: {} Marked Players Joining. ({})", connectingEnemyCheaters.size(), msg);
+		msg.pop_back();
+		msg.pop_back();
+		chatMsg.fmt("[tf2bd] WARN: {} Marked Players Joining. ({})", cheatersToActuallyWarn.size(), msg);
 	}
+
+	if (cheatersToActuallyWarn.empty())
+		return;
 
 	if (m_ActionManager->QueueAction<PartyChatMessageAction>(chatMsg.str()))
 	{
-		for (auto& cheater : unwarnedCheaters)
+		for (auto& cheater : cheatersToActuallyWarn)
 			cheater->GetOrCreateData<PlayerExtraData>().m_PartyWarned = true;
 	}
 }
@@ -974,9 +1005,39 @@ void ModeratorLogic::ProcessPlayerActions()
 		m_LastPlayerActionsUpdate = now;
 	}
 
+	std::vector<Cheater> connectingPartyWarnPlayers;
+
+	for (IPlayer& player : m_World->GetLobbyMembers())
+	{
+		const bool isPlayerConnected = player.GetConnectionState() == PlayerStatusState::Active;
+		auto rawMarks = m_PlayerList.GetPlayerAttributes(player);
+		auto partyMarks = FilterMarks(rawMarks, m_Settings->m_AutoChatWarningsPartyIgnore);
+
+		if (!partyMarks.empty())
+		{
+			if (!isPlayerConnected)
+			{
+				connectingPartyWarnPlayers.push_back({ player, partyMarks });
+			}
+
+			auto& extraData = player.GetOrCreateData<PlayerExtraData>();
+			if (extraData.m_PartyWarned && !extraData.m_PartyWarnedNameResolved)
+			{
+				std::string gameName = player.GetNameSafe();
+				if (!gameName.empty())
+				{
+					m_ActionManager->QueueAction<PartyChatMessageAction>(
+						mh::format("[tf2bd] {}, {}, {}", player.GetSteamID().str(), marksToString(partyMarks), gameName));
+					extraData.m_PartyWarnedNameResolved = true;
+				}
+			}
+		}
+	}
+
+	HandleConnectingMarkedPlayers(connectingPartyWarnPlayers);
+
 	if (auto self = m_World->FindPlayer(m_Settings->GetLocalSteamID());
-		(self && self->GetConnectionState() != PlayerStatusState::Active) ||
-		!m_World->IsLocalPlayerInitialized())
+		!self || self->GetConnectionState() != PlayerStatusState::Active)
 	{
 		DebugLog("Skipping ProcessPlayerActions() because we are not fully connected yet");
 		return;
@@ -998,11 +1059,9 @@ void ModeratorLogic::ProcessPlayerActions()
 
 	// all cheaters in lobby: used for m_IgnoreTeamStateOnCertainMaps.
 	std::vector<Cheater> allCheaters;
-	std::vector<Cheater> enemyCheaters;
 	std::vector<Cheater> friendlyCheaters;
-	std::vector<Cheater> connectingEnemyCheaters;
-	// the struct Cheater doesn't really have to be always a cheater (lol)
-	std::vector<Cheater> connectingMarkedPlayer;
+	std::vector<Cheater> enemyChatWarnPlayers;
+	std::vector<Cheater> connectingEnemyChatWarnPlayers;
 
 	const bool isBotLeader = IsBotLeader();
 	bool needsEnemyWarning = false;
@@ -1010,13 +1069,10 @@ void ModeratorLogic::ProcessPlayerActions()
 	{
 		const bool isPlayerConnected = player.GetConnectionState() == PlayerStatusState::Active;
 		const auto isCheater = m_PlayerList.HasPlayerAttributes(player, PlayerAttribute::Cheater);
-		const bool isMarked = !m_PlayerList.GetPlayerAttributes(player).empty();
 		const auto teamShareResult = m_World->GetTeamShareResult(*myTeam, player);
 
-		if (isMarked && !isPlayerConnected)
-		{
-			connectingMarkedPlayer.push_back({ player, m_PlayerList.GetPlayerAttributes(player) });
-		}
+		auto rawMarks = m_PlayerList.GetPlayerAttributes(player);
+		auto chatMarks = FilterMarks(rawMarks, m_Settings->m_AutoChatWarningsIgnore);
 
 		if (bool(isCheater))
 			allCheaters.push_back({ player, isCheater });
@@ -1040,13 +1096,13 @@ void ModeratorLogic::ProcessPlayerActions()
 			{
 				connectedEnemyPlayers++;
 
-				if (isCheater && !player.GetNameSafe().empty())
-					enemyCheaters.push_back({ player, isCheater });
+				if (!chatMarks.empty() && !player.GetNameSafe().empty())
+					enemyChatWarnPlayers.push_back({ player, chatMarks });
 			}
 			else
 			{
-				if (isCheater)
-					connectingEnemyCheaters.push_back({ player, isCheater });
+				if (!chatMarks.empty())
+					connectingEnemyChatWarnPlayers.push_back({ player, chatMarks });
 			}
 
 			totalEnemyPlayers++;
@@ -1054,7 +1110,7 @@ void ModeratorLogic::ProcessPlayerActions()
 	}
 
 
-	HandleEnemyCheaters(totalEnemyPlayers, enemyCheaters, connectingEnemyCheaters);
+	HandleEnemyCheaters(totalEnemyPlayers, enemyChatWarnPlayers, connectingEnemyChatWarnPlayers);
 
 	// because we're in a map that swaps the teams around constantly, just ignore our own "team state" and try to call for everyone.
 	if (this->VoteKickIgnoresTeamState()) {
@@ -1063,8 +1119,6 @@ void ModeratorLogic::ProcessPlayerActions()
 	else {
 		HandleFriendlyCheaters(totalFriendlyPlayers, connectedFriendlyPlayers, friendlyCheaters);
 	}
-
-	HandleConnectingMarkedPlayers(connectingMarkedPlayer);
 }
 
 bool ModeratorLogic::SetPlayerAttribute(const IPlayer& player, PlayerAttribute attribute, AttributePersistence persistence, bool set, std::string proof)
@@ -1108,6 +1162,17 @@ bool ModeratorLogic::SetPlayerAttribute(const SteamID& player, std::string name,
 
 			return ModifyPlayerAction::Modified;
 		});
+
+	if (attributeChanged && proof.rfind("[auto]", 0) != 0)
+	{
+		mh::fmtstr<128> chatMsg;
+		if (set)
+			chatMsg.fmt("[tf2bd] Marked {} as {}.", name, to_string(attribute));
+		else
+			chatMsg.fmt("[tf2bd] Unmarked {} as {}.", name, to_string(attribute));
+
+		m_ActionManager->QueueAction<PartyChatMessageAction>(chatMsg.str());
+	}
 
 	return attributeChanged;
 }
@@ -1256,6 +1321,83 @@ ModeratorLogic::ModeratorLogic(IWorldState& world, const Settings& settings, RCO
 	m_PlayerList(settings),
 	m_Rules(settings)
 {
+	if (m_Settings)
+	{
+		if (auto tfDir = m_Settings->GetTFDir(); !tfDir.empty())
+		{
+			struct ClassConfig { const char* first; const char* second; };
+			constexpr std::array<ClassConfig, 9> CLASS_CONFIGS = {{
+				{"scout", "echo TF2BD_SIGNAL_SCOUT"},
+				{"soldier", "echo TF2BD_SIGNAL_SOLDIER"},
+				{"pyro", "echo TF2BD_SIGNAL_PYRO"},
+				{"demoman", "echo TF2BD_SIGNAL_DEMOMAN"},
+				{"heavyweapons", "echo TF2BD_SIGNAL_HEAVYWEAPONS"},
+				{"engineer", "echo TF2BD_SIGNAL_ENGINEER"},
+				{"medic", "echo TF2BD_SIGNAL_MEDIC"},
+				{"sniper", "echo TF2BD_SIGNAL_SNIPER"},
+				{"spy", "echo TF2BD_SIGNAL_SPY"}
+			}};
+			for (const auto& cls : CLASS_CONFIGS)
+			{
+				auto path = tfDir / "cfg" / mh::format("{}.cfg", cls.first);
+				std::ofstream file(path, std::ios::app);
+				if (file.is_open())
+					file << "\n" << cls.second << "\n";
+			}
+		}
+	}
+}
+
+ModeratorLogic::~ModeratorLogic()
+{
+	if (m_Settings)
+	{
+		if (auto tfDir = m_Settings->GetTFDir(); !tfDir.empty())
+		{
+			struct ClassConfig { const char* first; const char* second; };
+			constexpr std::array<ClassConfig, 9> CLASS_CONFIGS = {{
+				{"scout", "echo TF2BD_SIGNAL_SCOUT"},
+				{"soldier", "echo TF2BD_SIGNAL_SOLDIER"},
+				{"pyro", "echo TF2BD_SIGNAL_PYRO"},
+				{"demoman", "echo TF2BD_SIGNAL_DEMOMAN"},
+				{"heavyweapons", "echo TF2BD_SIGNAL_HEAVYWEAPONS"},
+				{"engineer", "echo TF2BD_SIGNAL_ENGINEER"},
+				{"medic", "echo TF2BD_SIGNAL_MEDIC"},
+				{"sniper", "echo TF2BD_SIGNAL_SNIPER"},
+				{"spy", "echo TF2BD_SIGNAL_SPY"}
+			}};
+			for (const auto& cls : CLASS_CONFIGS)
+			{
+				auto path = tfDir / "cfg" / mh::format("{}.cfg", cls.first);
+				std::ifstream infile(path);
+				if (infile.is_open())
+				{
+					std::string content;
+					std::string line;
+					std::string target = cls.second;
+					while (std::getline(infile, line))
+					{
+						if (line != target && line != target + "\r")
+						{
+							content += line + "\n";
+						}
+					}
+					infile.close();
+
+					// Remove the exact trailing newline we added if any, but writing exactly what we kept is fine.
+					while (!content.empty() && (content.back() == '\n' || content.back() == '\r'))
+						content.pop_back();
+					content += "\n"; // Add one single newline at EOF for good measure
+
+					std::ofstream outfile(path, std::ios::trunc);
+					if (outfile.is_open())
+					{
+						outfile << content;
+					}
+				}
+			}
+		}
+	}
 }
 
 PlayerMarks ModeratorLogic::GetPlayerAttributes(const SteamID& id) const
