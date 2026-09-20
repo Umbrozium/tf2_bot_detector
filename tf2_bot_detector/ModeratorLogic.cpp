@@ -1027,7 +1027,7 @@ void ModeratorLogic::ProcessPlayerActions()
 				if (!gameName.empty())
 				{
 					m_ActionManager->QueueAction<PartyChatMessageAction>(
-						mh::format("[tf2bd] {}, {}, {}", player.GetSteamID().str(), marksToString(partyMarks), gameName));
+						fmt::format("[tf2bd] {}, {}, {}", player.GetSteamID().str(), marksToString(partyMarks), gameName));
 					extraData.m_PartyWarnedNameResolved = true;
 				}
 			}
@@ -1339,7 +1339,7 @@ ModeratorLogic::ModeratorLogic(IWorldState& world, const Settings& settings, RCO
 			}};
 			for (const auto& cls : CLASS_CONFIGS)
 			{
-				auto path = tfDir / "cfg" / mh::format("{}.cfg", cls.first);
+				auto path = tfDir / "cfg" / fmt::format("{}.cfg", cls.first);
 				std::ofstream file(path, std::ios::app);
 				if (file.is_open())
 					file << "\n" << cls.second << "\n";
@@ -1368,7 +1368,7 @@ ModeratorLogic::~ModeratorLogic()
 			}};
 			for (const auto& cls : CLASS_CONFIGS)
 			{
-				auto path = tfDir / "cfg" / mh::format("{}.cfg", cls.first);
+				auto path = tfDir / "cfg" / fmt::format("{}.cfg", cls.first);
 				std::ifstream infile(path);
 				if (infile.is_open())
 				{
