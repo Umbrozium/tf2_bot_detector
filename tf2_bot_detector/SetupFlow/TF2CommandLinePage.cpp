@@ -31,24 +31,6 @@ using namespace std::chrono_literals;
 using namespace std::string_literals;
 using namespace tf2_bot_detector;
 
-static std::string GenerateRandomRCONPassword(size_t length = 16)
-{
-	std::mt19937 generator;
-	{
-		std::random_device randomSeed;
-		generator.seed(randomSeed());
-	}
-
-	constexpr char PALETTE[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	std::uniform_int_distribution<size_t> dist(0, std::size(PALETTE) - 2);
-
-	std::string retVal(length, '\0');
-	for (size_t i = 0; i < length; i++)
-		retVal[i] = PALETTE[dist(generator)];
-
-	return retVal;
-}
-
 void TF2CommandLinePage::Data::TryUpdateCmdlineArgs()
 {
 	if (m_CommandLineArgsTask.is_ready())
@@ -254,9 +236,15 @@ static void OpenTF2(const Settings& settings, const std::string_view& rconPasswo
 		" +developer 1"
 		" +ip 0.0.0.0"
 		" +sv_rcon_whitelist_address 127.0.0.1"
-		" +sv_quota_stringcmdspersecond 1000000" // workaround for mastercomfig causing crashes on local servers
-		" +rcon_password " << rconPassword <<
-		" +hostport " << rconPort <<
+		" +sv_quota_stringcmdspersecond 1000000"; // workaround for mastercomfig causing crashes on local servers
+	
+	if (settings.m_UseRconStaticParams) {
+		args <<
+			" +rcon_password " << rconPassword <<
+			" +hostport " << rconPort;
+	}
+
+	args <<
 		" +net_start"
 		" +con_timestamp 1"
 		" -condebug"
@@ -317,11 +305,19 @@ static void OpenTF2(const Settings& settings, const std::string_view& rconPasswo
 	*/
 	// getenv("TF2BD_TF2_LD_PRELOAD")
 	// tf.sh expects the tf2 install dir (where it lives) as the cwd, not the sniper runtime dir.
-	Processes::Launch(runtime_sniper, sniper_args, false, gameEXE.parent_path());
+	if (settings.m_UseSteamURIProtocol) {
+		Processes::Launch("xdg-open", "steam://rungameid/440", false, gameEXE.parent_path());
+	} else {
+		Processes::Launch(runtime_sniper, sniper_args, false, gameEXE.parent_path());
+	}
 #else
 	// if not linux we don't have to do all of that and just launch the game.
 	// launch with the game's own dir as cwd (ShellExecute otherwise inherits our cwd).
-	Processes::Launch(gameEXE, args, false, gameEXE.parent_path());
+	if (settings.m_UseSteamURIProtocol) {
+		Processes::Launch("steam://rungameid/440", "", false, gameEXE.parent_path());
+	} else {
+		Processes::Launch(gameEXE, args, false, gameEXE.parent_path());
+	}
 #endif
 }
 
@@ -436,32 +432,41 @@ void tf2_bot_detector::TF2CommandLinePage::DrawTF2LaunchMode(const DrawState& ds
 
 void TF2CommandLinePage::DrawRconStaticParamsCheckbox(const DrawState& ds)
 {
+	if (ImGui::Checkbox("Use Steam URI Protocol", &ds.m_Settings->m_UseSteamURIProtocol))
+		ds.m_Settings->SaveFile();
+	
+	ImGui::TextWrapped("If enabled, TF2 Bot Detector cannot include any of its own launch options, include -port and +rcon_password in your game install settings manually.");
+	
 	if (ImGui::Checkbox("Use Static Rcon Launch Parameters (Not Recommended)", &ds.m_Settings->m_UseRconStaticParams))
 		ds.m_Settings->SaveFile();
 
-	if (ds.m_Settings->m_UseRconStaticParams) {
-		if (ImGui::InputText("password", &ds.m_Settings->m_RconStaticPassword, ImGuiInputTextFlags_CharsNoBlank)) {
-			ds.m_Settings->SaveFile();
-		}
+	ImGui::TextWrapped("If this is disabled, the port and password boxes listen to the specified port and password.");
 
-		// imgui stuff so it's not a scalar input for ports
-		std::string port = std::to_string(ds.m_Settings->m_RconStaticPort);
+	if (ImGui::InputText("password", &ds.m_Settings->m_RconStaticPassword, ImGuiInputTextFlags_CharsNoBlank)) {
+		ds.m_Settings->SaveFile();
+	}
 
-		// this code has some flaws,
-		// 1. it doesn't check if the port given is even a valid port
-		// 2. it doesnt check if that port is available
-		// however, we can blame the user for using this option so lol
-		if (ImGui::InputText("port", &port, ImGuiInputTextFlags_CharsDecimal)) {
-			for (size_t i = 0; i < port.size(); ++i) {
-				if (!isdigit(port.at(i))) {
-					port.erase(i);
-				}
+	// imgui stuff so it's not a scalar input for ports
+	std::string port = std::to_string(ds.m_Settings->m_RconStaticPort);
+
+	// this code has some flaws,
+	// 1. it doesn't check if the port given is even a valid port
+	// 2. it doesnt check if that port is available
+	// however, we can blame the user for using this option so lol
+	if (ImGui::InputText("port", &port, ImGuiInputTextFlags_CharsDecimal)) {
+		for (size_t i = 0; i < port.size(); ++i) {
+			if (!isdigit(port.at(i))) {
+				port.erase(i);
 			}
-
-			ds.m_Settings->m_RconStaticPort = std::stoi(port);
-
-			ds.m_Settings->SaveFile();
 		}
+
+		if (!port.empty()) {
+			ds.m_Settings->m_RconStaticPort = std::stoi(port);
+		} else {
+			ds.m_Settings->m_RconStaticPort = 0;
+		}
+
+		ds.m_Settings->SaveFile();
 	}
 }
 
@@ -478,14 +483,8 @@ void TF2CommandLinePage::DrawLaunchTF2Button(const DrawState& ds)
 				if (Platform::Processes::IsTF2Running())
 					LogError("TF2 already running!");
 
-				if (ds.m_Settings->m_UseRconStaticParams) {
-					m_Data.m_RandomRCONPassword = ds.m_Settings->m_RconStaticPassword;
-					m_Data.m_RandomRCONPort = ds.m_Settings->m_RconStaticPort;
-				}
-				else {
-					m_Data.m_RandomRCONPassword = GenerateRandomRCONPassword();
-					m_Data.m_RandomRCONPort = ds.m_Settings->m_TF2Interface.GetRandomRCONPort();
-				}
+				m_Data.m_RandomRCONPassword = ds.m_Settings->m_RconStaticPassword;
+				m_Data.m_RandomRCONPort = ds.m_Settings->m_RconStaticPort;
 
 				OpenTF2(*ds.m_Settings, m_Data.m_RandomRCONPassword, m_Data.m_RandomRCONPort);
 				m_Data.m_LastTF2LaunchTime = curTime;

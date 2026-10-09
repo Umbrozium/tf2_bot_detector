@@ -527,6 +527,7 @@ void Settings::Deserialize(const nlohmann::json& json)
 			}
 
 			// rcon static stuff
+			try_get_to_defaulted(*custom_values, m_UseSteamURIProtocol, "use_steam_uri_protocol", DEFAULTS.m_UseSteamURIProtocol);
 			try_get_to_defaulted(*custom_values, m_UseRconStaticParams, "rcon_use_static_values", DEFAULTS.m_UseRconStaticParams);
 			try_get_to_defaulted(*custom_values, m_RconStaticPort, "rcon_static_port", DEFAULTS.m_RconStaticPort);
 			try_get_to_defaulted(*custom_values, m_RconStaticPassword, "rcon_static_password", DEFAULTS.m_RconStaticPassword);
@@ -630,6 +631,7 @@ void Settings::Serialize(nlohmann::json& json) const
 						{ "muti_cheater_connecting", m_MultipleCheaterConnectingMessage },
 						{ "one_cheater_warning", m_OneCheaterWarningMessage },
 						{ "muti_cheater_warning", m_MultipleCheaterWarningMessage },
+						{ "use_steam_uri_protocol", m_UseSteamURIProtocol },
 						{ "rcon_use_static_values", m_UseRconStaticParams },
 						{ "rcon_static_port", m_RconStaticPort },
 						{ "rcon_static_password", m_RconStaticPassword },
