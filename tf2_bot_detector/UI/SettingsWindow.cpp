@@ -529,31 +529,44 @@ void tf2_bot_detector::SettingsWindow::OnDrawMiscSettings()
 		}
 
 		// PASTED: see TF2CommandLinePage.cpp
+		if (ImGui::Checkbox("Use Steam URI Protocol", &m_Settings.m_UseSteamURIProtocol))
+			m_Settings.SaveFile();
+
+		ImGui::TextWrapped("If enabled, TF2 Bot Detector cannot include any of its own launch options, include -port and +rcon_password in your game install settings manually.");
+
 		if (ImGui::Checkbox("Use Static Rcon Launch Parameters (Not Recommended)", &m_Settings.m_UseRconStaticParams))
 			m_Settings.SaveFile();
 
-		if (m_Settings.m_UseRconStaticParams) {
-			if (ImGui::InputText("password", &m_Settings.m_RconStaticPassword)) {
-				m_Settings.SaveFile();
-			}
+		ImGui::TextWrapped("If this is disabled, the port and password boxes listen to the specified port and password.");
 
-			// imgui stuff so it's not a scalar input for ports
-			std::string port = std::to_string(m_Settings.m_RconStaticPort);
+		if (ImGui::InputText("password", &m_Settings.m_RconStaticPassword, ImGuiInputTextFlags_CharsNoBlank)) {
+			m_Settings.SaveFile();
+		}
 
-			// this code has some flaws,
-			// 1. it doesn't check if the port given is even a valid port
-			// 2. it doesn't check if that port is available
-			// however, we can just blame the user for using this option so lol
-			if (ImGui::InputText("port", &port, ImGuiInputTextFlags_CharsDecimal)) {
-				for (size_t i = 0; i < port.size(); ++i) {
-					if (!isdigit(port.at(i))) {
-						port.erase(i);
-					}
+		// imgui stuff so it's not a scalar input for ports
+		std::string port = m_Settings.m_RconStaticPort != 0
+			? std::to_string(m_Settings.m_RconStaticPort)
+			: std::string();
+
+		// this code has some flaws,
+		// 1. it doesn't check if the port given is even a valid port
+		// 2. it doesn't check if that port is available
+		// however, we can just blame the user for using this option so lol
+		if (ImGui::InputText("port", &port, ImGuiInputTextFlags_CharsDecimal)) {
+			for (size_t i = 0; i < port.size(); ++i) {
+				if (!isdigit(static_cast<unsigned char>(port.at(i)))) {
+					port.erase(i);
+					--i;
 				}
-
-				m_Settings.m_RconStaticPort = std::stoi(port);
-				m_Settings.SaveFile();
 			}
+
+			if (!port.empty()) {
+				m_Settings.m_RconStaticPort = std::stoi(port);
+			} else {
+				m_Settings.m_RconStaticPort = 0;
+			}
+
+			m_Settings.SaveFile();
 		}
 
 		ImGui::NewLine();

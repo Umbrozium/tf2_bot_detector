@@ -31,6 +31,46 @@ using namespace std::chrono_literals;
 using namespace std::string_literals;
 using namespace tf2_bot_detector;
 
+static std::string GenerateRandomRCONPassword(size_t length = 16)
+{
+	std::mt19937 generator;
+	{
+		std::random_device randomSeed;
+		generator.seed(randomSeed());
+	}
+
+	constexpr char PALETTE[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	std::uniform_int_distribution<size_t> dist(0, std::size(PALETTE) - 2);
+
+	std::string retVal(length, '\0');
+	for (size_t i = 0; i < length; i++)
+		retVal[i] = PALETTE[dist(generator)];
+
+	return retVal;
+}
+
+static bool ShouldUseRandomRCON(const Settings& settings)
+{
+	return !settings.m_UseSteamURIProtocol &&
+		!settings.m_UseRconStaticParams &&
+		settings.m_RconStaticPassword.empty() &&
+		settings.m_RconStaticPort == 0;
+}
+
+static bool IsRCONConfigPopulated(const Settings& settings, const auto& args)
+{
+	if (ShouldUseRandomRCON(settings))
+		return args.IsPopulated();
+
+	const std::string& pwd = !settings.m_RconStaticPassword.empty() ? settings.m_RconStaticPassword : args.m_RCONPassword;
+	const std::optional<uint16_t> port = settings.m_RconStaticPort != 0 ? std::optional<uint16_t>(settings.m_RconStaticPort) : args.m_RCONPort;
+
+	if (!settings.m_UseRconStaticParams || settings.m_UseSteamURIProtocol)
+		return !pwd.empty() && port.has_value() && port.value() != 0;
+
+	return args.IsPopulated();
+}
+
 void TF2CommandLinePage::Data::TryUpdateCmdlineArgs()
 {
 	if (m_CommandLineArgsTask.is_ready())
@@ -75,7 +115,7 @@ auto TF2CommandLinePage::ValidateSettings(const Settings& settings) const -> Val
 
 		return ValidateSettingsResult::TriggerOpen;
 	}
-	if (!m_Data.m_CommandLineArgs.has_value() || !m_Data.m_CommandLineArgs->IsPopulated()) {
+	if (!m_Data.m_CommandLineArgs.has_value() || !IsRCONConfigPopulated(settings, *m_Data.m_CommandLineArgs)) {
 		return ValidateSettingsResult::TriggerOpen;
 	}
 
@@ -106,7 +146,7 @@ auto TF2CommandLinePage::TF2CommandLine::Parse(const std::string_view& cmdLine) 
 				cli.m_RCONPassword = args[++i];
 				continue;
 			}
-			else if (!cli.m_RCONPort.has_value() && args[i] == "+hostport")
+			else if (!cli.m_RCONPort.has_value() && (args[i] == "+hostport" || args[i] == "-port"))
 			{
 				if (uint16_t parsedPort; mh::from_chars(args[i + 1], parsedPort))
 				{
@@ -238,7 +278,7 @@ static void OpenTF2(const Settings& settings, const std::string_view& rconPasswo
 		" +sv_rcon_whitelist_address 127.0.0.1"
 		" +sv_quota_stringcmdspersecond 1000000"; // workaround for mastercomfig causing crashes on local servers
 	
-	if (settings.m_UseRconStaticParams) {
+	if (settings.m_UseRconStaticParams || ShouldUseRandomRCON(settings)) {
 		args <<
 			" +rcon_password " << rconPassword <<
 			" +hostport " << rconPort;
@@ -443,11 +483,14 @@ void TF2CommandLinePage::DrawRconStaticParamsCheckbox(const DrawState& ds)
 	ImGui::TextWrapped("If this is disabled, the port and password boxes listen to the specified port and password.");
 
 	if (ImGui::InputText("password", &ds.m_Settings->m_RconStaticPassword, ImGuiInputTextFlags_CharsNoBlank)) {
+		m_Data.m_TestRCONClient.reset();
 		ds.m_Settings->SaveFile();
 	}
 
 	// imgui stuff so it's not a scalar input for ports
-	std::string port = std::to_string(ds.m_Settings->m_RconStaticPort);
+	std::string port = ds.m_Settings->m_RconStaticPort != 0
+		? std::to_string(ds.m_Settings->m_RconStaticPort)
+		: std::string();
 
 	// this code has some flaws,
 	// 1. it doesn't check if the port given is even a valid port
@@ -455,8 +498,9 @@ void TF2CommandLinePage::DrawRconStaticParamsCheckbox(const DrawState& ds)
 	// however, we can blame the user for using this option so lol
 	if (ImGui::InputText("port", &port, ImGuiInputTextFlags_CharsDecimal)) {
 		for (size_t i = 0; i < port.size(); ++i) {
-			if (!isdigit(port.at(i))) {
+			if (!isdigit(static_cast<unsigned char>(port.at(i)))) {
 				port.erase(i);
+				--i;
 			}
 		}
 
@@ -466,6 +510,7 @@ void TF2CommandLinePage::DrawRconStaticParamsCheckbox(const DrawState& ds)
 			ds.m_Settings->m_RconStaticPort = 0;
 		}
 
+		m_Data.m_TestRCONClient.reset();
 		ds.m_Settings->SaveFile();
 	}
 }
@@ -483,8 +528,18 @@ void TF2CommandLinePage::DrawLaunchTF2Button(const DrawState& ds)
 				if (Platform::Processes::IsTF2Running())
 					LogError("TF2 already running!");
 
-				m_Data.m_RandomRCONPassword = ds.m_Settings->m_RconStaticPassword;
-				m_Data.m_RandomRCONPort = ds.m_Settings->m_RconStaticPort;
+				if (ShouldUseRandomRCON(*ds.m_Settings)) {
+					m_Data.m_RandomRCONPassword = GenerateRandomRCONPassword();
+					m_Data.m_RandomRCONPort = ds.m_Settings->m_TF2Interface.GetRandomRCONPort();
+				}
+				else {
+					m_Data.m_RandomRCONPassword = !ds.m_Settings->m_RconStaticPassword.empty()
+						? ds.m_Settings->m_RconStaticPassword
+						: GenerateRandomRCONPassword();
+					m_Data.m_RandomRCONPort = ds.m_Settings->m_RconStaticPort != 0
+						? ds.m_Settings->m_RconStaticPort
+						: ds.m_Settings->m_TF2Interface.GetRandomRCONPort();
+				}
 
 				OpenTF2(*ds.m_Settings, m_Data.m_RandomRCONPassword, m_Data.m_RandomRCONPort);
 				m_Data.m_LastTF2LaunchTime = curTime;
@@ -595,7 +650,7 @@ auto TF2CommandLinePage::OnDraw(const DrawState& ds) -> OnDrawResult
 
 		ImGui::EnabledSwitch(false, [&] { DrawLaunchTF2Button(ds); }, "TF2 is currently running. Please close it first.");
 	}
-	else if (auto& args = m_Data.m_CommandLineArgs.value(); !args.IsPopulated())
+	else if (auto& args = m_Data.m_CommandLineArgs.value(); !IsRCONConfigPopulated(*ds.m_Settings, args))
 	{
 		m_IsAutoLaunchAllowed = false; // Invalid command line arguments, disable auto launching
 		m_Data.m_TestRCONClient.reset();
@@ -604,11 +659,18 @@ auto TF2CommandLinePage::OnDraw(const DrawState& ds) -> OnDrawResult
 	else if (!m_Data.m_RCONSuccess)
 	{
 		auto& args = m_Data.m_CommandLineArgs.value();
+		const std::string& rconPassword = !ds.m_Settings->m_RconStaticPassword.empty()
+			? ds.m_Settings->m_RconStaticPassword
+			: args.m_RCONPassword;
+		const uint16_t rconPort = ds.m_Settings->m_RconStaticPort != 0
+			? ds.m_Settings->m_RconStaticPort
+			: args.m_RCONPort.value();
+
 		ImGui::TextFmt("Connecting to TF2 on 127.0.0.1:{} with password {}...",
-			args.m_RCONPort.value(), fmt::streamed(std::quoted(args.m_RCONPassword)));
+			rconPort, fmt::streamed(std::quoted(rconPassword)));
 
 		if (!m_Data.m_TestRCONClient) {
-			m_Data.m_TestRCONClient.emplace(args.m_RCONPassword, args.m_RCONPort.value());
+			m_Data.m_TestRCONClient.emplace(rconPassword, rconPort);
 		}
 
 		ImGui::NewLine();

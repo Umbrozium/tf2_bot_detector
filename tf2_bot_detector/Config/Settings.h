@@ -125,8 +125,8 @@ namespace tf2_bot_detector
 		/// </summary>
 		bool m_UseSteamURIProtocol = false;
 		bool m_UseRconStaticParams = false;
-		std::string m_RconStaticPassword = "changeme";
-		uint16_t m_RconStaticPort = 40001;
+		std::string m_RconStaticPassword = "";
+		uint16_t m_RconStaticPort = 0;
 
 		/// <summary>
 		/// use recommended launch params (I actually need contimes to not be 0 :DD)
